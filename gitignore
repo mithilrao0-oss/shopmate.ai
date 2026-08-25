@@ -1,0 +1,52 @@
+# ==== Environment / secrets ====
+.env
+.env.local
+.env.*.local
+*.env
+!.env.example
+
+# ==== Node.js (frontend/backend) ====
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+dist/
+build/
+.cache/
+
+# ==== Python (agents/, content-pipeline/) ====
+__pycache__/
+*.py[cod]
+*.pyc
+venv/
+.venv/
+env/
+*.egg-info/
+.pytest_cache/
+
+# ==== Java / Maven (services/inventory-service-java) ====
+target/
+*.class
+*.jar
+!.mvn/wrapper/maven-wrapper.jar
+.mvn/
+
+# ==== C++ (tools/image-processor-cpp) ====
+tools/image-processor-cpp/build/*
+!tools/image-processor-cpp/build/.gitkeep
+*.o
+*.obj
+*.exe
+*.out
+
+# ==== Generated content (don't commit large media) ====
+content-pipeline/assets/output/*
+!content-pipeline/assets/output/.gitkeep
+content-pipeline/assets/stock_footage/*
+!content-pipeline/assets/stock_footage/.gitkeep
+
+# ==== OS / Editor ====
+.DS_Store
+Thumbs.db
+.vscode/
+*.log
