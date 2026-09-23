@@ -1,163 +1,204 @@
-# ShopMate.ai — AI-Powered Product Discovery & Auto-Content Platform
+# ShopMate.ai
 
-## 1. Project Overview
+### AI Agent-Assisted Product Discovery & Auto-Content Platform
 
-ShopMate.ai is a college Semester 5 AIOT project that aims to simplify product discovery and marketing for dropshipping businesses using AI agents.
+ShopMate.ai is a Semester 5 college project for **Artificial Intelligence of Things (AIOT)**. It is designed to help online sellers organize product information, explore early trend signals, and prepare marketing content with AI assistance.
 
-The platform is designed to help users discover suitable products, identify emerging trend signals, generate marketing content, and review content before publication.
+The project aims to demonstrate practical concepts from Generative AI, Prompt Engineering, and Agentic AI through a simple and understandable web application.
 
-The project focuses on using Generative AI, prompt engineering, and agent-based workflows to assist with product discovery and content creation.
+> **Project status:** Frontend prototype with demo functionality. Backend services, real AI model integration, database storage, and publishing are not yet implemented.
 
-## 2. Problem Statement
+---
 
-Dropshipping businesses often need to spend considerable time researching products, monitoring trends, and creating promotional content.
+## 1. Problem Statement
 
-ShopMate.ai aims to organize and simplify these activities through an AI-assisted workflow.
+Online sellers need to find suitable products and prepare promotional content for them. Doing this manually can take time and require multiple tools.
 
-## 3. Main Objectives
+ShopMate.ai aims to provide a single workspace where sellers can manage product information, view trend insights, and prepare marketing content for review.
 
-* Collect and organize product information.
-* Filter products using defined criteria.
-* Identify potential trends using available engagement and product data.
-* Generate product descriptions, captions, and promotional scripts using an LLM.
-* Support the creation of short-form promotional content.
-* Provide a dashboard for viewing products, trends, and generated content.
-* Include a human review step before content is published.
+---
 
-## 4. Proposed Features
+## 2. Project Objectives
 
-### Product Discovery
+* Organize product information in one workspace.
+* Help filter and shortlist products using relevant criteria.
+* Display early trend signals without claiming to predict virality.
+* Prepare product captions, reel scripts, and descriptions.
+* Provide a user interface for reviewing and editing content.
+* Design a workflow that keeps humans involved before publishing.
+* Demonstrate AIOT concepts through a practical application.
 
-The platform is designed to collect product information and filter products according to selected criteria.
+---
 
-### Trend Insights
+## 3. Current Features
 
-The trend workflow aims to surface products showing potentially useful signals, such as engagement changes or other available indicators.
-
-Trend insights are not guaranteed predictions of virality or product success.
-
-### AI Content Generation
-
-An LLM will be used to assist with generating marketing content, such as:
-
-* Product descriptions
-* Social media captions
-* Promotional video scripts
-* Voiceover text
-
-### Content Review
-
-Generated content will be presented for human review before publication.
+The following features are currently available in the frontend prototype:
 
 ### Dashboard
 
-The frontend provides a dashboard intended to help users navigate product discovery, trend insights, AI-generated content, and the review workflow.
+* Displays project workspace metrics using demonstration data.
+* Provides navigation to the main workspace sections.
+
+### Products
+
+* Displays sample product information.
+* Allows the user to interact with the product workspace.
+* Product changes currently use frontend state and are not permanently stored.
+
+### Trend Insights
+
+* Displays illustrative trend information.
+* Helps demonstrate how products could be explored using trend signals.
+* Does not use verified live trend measurements or predict virality.
+
+### AI Content Studio
+
+* Allows the user to select a product.
+* Supports Product Caption, Reel Script, and Product Description content types.
+* Supports Friendly, Professional, and Exciting tones.
+* Generates content using sample templates.
+* Allows the generated text to be edited and copied.
+* Clearly identifies the current demo mode.
+
+**Important:** The current content generator uses demonstration templates. It is not connected to a real AI model or LLM yet.
+
+### Review Queue
+
+* A review and approval workflow is planned.
+* Human review is intended to take place before content is published.
+
+---
+
+## 4. Proposed Workflow
+
+The planned system workflow is:
+
+1. Collect product information.
+2. Filter and shortlist products.
+3. Explore early trend signals.
+4. Generate marketing content.
+5. Preview and edit the generated content.
+6. Review and approve the content.
+7. Prepare approved content for publishing.
+8. Use feedback to improve later content decisions.
+
+The workflow will be implemented gradually as the project develops.
+
+---
 
 ## 5. Technology Stack
 
-The planned technology stack includes:
+### Current Frontend
 
-| Component                   | Technology          |
-| --------------------------- | ------------------- |
-| Frontend                    | React               |
-| Frontend development server | Vite                |
-| Backend API                 | Python with FastAPI |
-| AI workflows                | Python-based agents |
-| Language model              | Open-source LLM     |
-| Database                    | SQLite              |
-| Version control             | Git and GitHub      |
+* **React** – building the user interface.
+* **Vite** – frontend development and build tooling.
+* **CSS** – styling the workspace.
 
-The stack and architecture may be adjusted as development progresses.
+### Planned Technologies
 
-## 6. Current Development Status
+* **Python** – implementation of agent and supporting logic.
+* **FastAPI** – backend API.
+* **SQLite** – simple database storage.
+* **Open-source LLM** – planned for real content generation, subject to practical model and environment requirements.
 
-### Completed
+The planned technologies may be adjusted if needed to keep the project functional and suitable for a Semester 5 college project.
 
-* Created the initial project scaffold.
-* Set up the React frontend using Vite.
-* Created the initial ShopMate.ai dashboard interface.
-* Added dashboard sections for product discovery, trend insights, AI content, and review workflow.
-* Added sample product and dashboard information for demonstration.
-* Initialized and updated the GitHub repository.
+---
 
-### In Progress
+## 6. AIOT Concepts
 
-* Making dashboard navigation interactive.
-* Developing the individual frontend pages.
-* Implementing the backend API.
-* Developing the product sourcing and filtering workflow.
-* Developing the trend analysis workflow.
-* Integrating the LLM for content generation.
+ShopMate.ai is intended to demonstrate concepts from the three AIOT units:
 
-### Planned
+### Unit 1 – Foundations of Generative AI and LLMs
 
-* Connect the frontend to the backend.
-* Store and retrieve product information using SQLite.
-* Connect the AI agents to the application workflow.
-* Develop the content-generation pipeline.
-* Add a human approval workflow.
-* Investigate platform integrations, subject to API access and platform requirements.
+The planned LLM integration will demonstrate text generation and the use of an open model.
 
-**Note:** The dashboard currently uses demonstration data. The backend, AI agents, database integration, and external publishing features should not be considered operational until implemented and tested.
+### Unit 2 – Prompt Engineering
 
-## 7. System Workflow
+Structured prompts and templates will guide the generation of product captions, reel scripts, and descriptions.
 
-The proposed workflow is:
+### Unit 3 – Agentic AI and Autonomous Systems
 
-1. Collect product information.
-2. Filter and organize products.
-3. Analyze available data for trend signals.
-4. Generate marketing content using an LLM.
-5. Present the generated content for human review.
-6. Allow approved content to proceed to the next publishing step, when supported.
+The planned agent workflow will organize tasks such as product filtering, trend analysis, and content preparation. Human review will remain part of the publishing process.
 
-## 8. Responsible AI
+These are project goals; concepts will be documented as implemented when the corresponding functionality is available.
 
-ShopMate.ai is intended to follow responsible AI practices:
+---
 
-* Clearly identify demonstration data and generated content.
-* Avoid presenting trend signals as guaranteed predictions.
-* Keep a human approval step before publication.
-* Review generated content for accuracy and suitability.
-* Respect supplier terms and third-party platform requirements.
-* Protect API keys and other credentials using environment variables.
+## 7. Responsible AI
 
-## 9. Project Scope and Limitations
+The project is designed around the following principles:
 
-This project is being developed as a manageable college AIOT application.
+* **Transparency:** Clearly distinguish demo data and template-generated content from real AI output.
+* **Accuracy:** Avoid unsupported product claims, fake reviews, and guaranteed-profit claims.
+* **Trend limitations:** Trend signals should not be presented as reliable predictions of virality.
+* **Human control:** Content should be reviewed by a person before publishing.
+* **Privacy:** Protect API keys and any user information introduced during development.
+* **Safety:** Consider avoiding restricted or unsafe product categories where relevant.
 
-The initial version focuses on demonstrating an AI-assisted workflow rather than providing a fully autonomous commercial dropshipping service.
+---
 
-Real supplier data, trend data, LLM services, and social media publishing may require external accounts, API access, credentials, and additional testing.
+## 8. Limitations
 
-The availability and reliability of these integrations will depend on the services used.
+The current prototype has the following limitations:
 
-## 10. Academic Relevance
+* Product information includes demonstration data.
+* Product changes are not yet saved permanently.
+* Trend insights are illustrative and are not based on verified live measurements.
+* The content generator uses sample templates rather than a real AI model.
+* The review and approval workflow is not yet implemented.
+* Backend APIs and database integration are not yet available.
+* Automatic Instagram publishing is not implemented.
 
-The project is intended to demonstrate concepts related to:
+---
 
-* Foundations of Generative AI and Large Language Models
-* Prompt Engineering
-* Agentic AI and Autonomous Systems
-* AI-assisted application development
-* Responsible AI practices
-
-## 11. Future Improvements
+## 9. Future Scope
 
 Possible future improvements include:
 
-* Additional product filtering options.
-* More detailed trend visualizations.
-* Improved content-generation prompts.
-* Better content review and approval controls.
-* Additional integrations where API access is available.
+* Implementing a FastAPI backend.
+* Adding SQLite storage for products and content drafts.
+* Connecting an appropriate open-source LLM.
+* Developing product sourcing and filtering logic.
+* Implementing trend-signal calculations using available data.
+* Building a review and approval queue.
+* Improving content generation and preview functionality.
+* Exploring a publishing integration if the required API access and permissions are available.
+* Testing the complete workflow and documenting the results.
 
-## 12. Repository
+---
 
-GitHub repository:
+## 10. Running the Frontend
 
-https://github.com/mithilrao0-oss/shopmate.ai
+Make sure Node.js and npm are installed.
 
-## 13. Disclaimer
+Open a terminal in the frontend directory:
 
-ShopMate.ai is an academic project. Product examples and dashboard metrics may be illustrative demonstration data and should not be interpreted as verified market research or guaranteed business outcomes.
+```powershell
+cd frontend
+```
+
+Install the project dependencies:
+
+```powershell
+npm install
+```
+
+Start the development server:
+
+```powershell
+npm run dev
+```
+
+Open the local address shown in the terminal to view the application.
+
+---
+
+## 11. Academic Project
+
+**Project:** ShopMate.ai
+**Subject:** Artificial Intelligence of Things (AIOT)
+**Semester:** 5
+**Project Type:** College academic project
+
+The project is being developed as a manageable, demonstrable application. Features and implementation status will be updated in this README as development progresses.
