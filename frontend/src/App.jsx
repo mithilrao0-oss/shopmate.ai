@@ -1,15 +1,13 @@
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import "./App.css";
 
-// Sample products for demonstration.
-// These are not live supplier listings.
 const initialProducts = [
   {
     id: 1,
     name: "Portable Blender",
     category: "Kitchen",
     cost: 650,
-    sellingPrice: 1299,
+    price: 1299,
     rating: 4.5,
     status: "Shortlisted",
   },
@@ -18,7 +16,7 @@ const initialProducts = [
     name: "LED Desk Lamp",
     category: "Home & Office",
     cost: 420,
-    sellingPrice: 899,
+    price: 899,
     rating: 4.3,
     status: "Under Review",
   },
@@ -27,7 +25,7 @@ const initialProducts = [
     name: "Travel Organizer",
     category: "Travel",
     cost: 280,
-    sellingPrice: 599,
+    price: 599,
     rating: 4.6,
     status: "Shortlisted",
   },
@@ -36,393 +34,156 @@ const initialProducts = [
     name: "Mini Bluetooth Speaker",
     category: "Electronics",
     cost: 800,
-    sellingPrice: 1499,
+    price: 1499,
     rating: 4.2,
     status: "Pending",
   },
 ];
 
-const overview = [
+const initialTrends = [
   {
-    label: "Products Discovered",
-    value: "128",
-    note: "Sample dashboard data",
-    icon: "▦",
-  },
-  {
-    label: "Shortlisted Products",
-    value: "32",
-    note: "Passed initial filters",
-    icon: "✓",
-  },
-  {
-    label: "Content Generated",
-    value: "18",
-    note: "Scripts and captions",
-    icon: "✎",
-  },
-  {
-    label: "Pending Reviews",
-    value: "5",
-    note: "Awaiting human approval",
-    icon: "◷",
-  },
-];
-
-const pages = [
-  "Dashboard",
-  "Products",
-  "Trend Insights",
-  "AI Content",
-  "Review Queue",
-];
-
-function getPageIcon(page) {
-  switch (page) {
-    case "Dashboard":
-      return "▦";
-    case "Products":
-      return "□";
-    case "Trend Insights":
-      return "↗";
-    case "AI Content":
-      return "✎";
-    case "Review Queue":
-      return "✓";
-    default:
-      return "•";
-  }
-}
-
-function formatPrice(price) {
-  return `₹${Number(price).toLocaleString("en-IN")}`;
-}
-
-function calculateMargin(product) {
-  if (!product.sellingPrice || product.sellingPrice <= 0) {
-    return "0.0%";
-  }
-
-  const margin =
-    ((product.sellingPrice - product.cost) / product.sellingPrice) * 100;
-
-  return `${margin.toFixed(1)}%`;
-}
-
-function getStatusClass(status) {
-  return `status status-${status.toLowerCase().replaceAll(" ", "-")}`;
-}
-
-function App() {
-  const [activePage, setActivePage] = useState("Dashboard");
-
-  // Product list can be updated through the Add Product form.
-  const [products, setProducts] = useState(initialProducts);
-
-  const [searchTerm, setSearchTerm] = useState("");
-  const [selectedCategory, setSelectedCategory] = useState("All Categories");
-  const [selectedStatus, setSelectedStatus] = useState("All Statuses");
-
-  const [showAddForm, setShowAddForm] = useState(false);
-
-  const [newProduct, setNewProduct] = useState({
-    name: "",
+    id: 1,
+    name: "Portable Blender",
     category: "Kitchen",
-    cost: "",
-    sellingPrice: "",
-    rating: "",
-    status: "Pending",
-  });
+    searchInterest: 82,
+    engagement: 76,
+    competitorActivity: 61,
+    signal: "Rising",
+    explanation:
+      "Search interest and engagement are relatively strong in this sample. Review supplier quality and pricing before shortlisting.",
+  },
+  {
+    id: 2,
+    name: "LED Desk Lamp",
+    category: "Home & Office",
+    searchInterest: 58,
+    engagement: 52,
+    competitorActivity: 72,
+    signal: "Watch",
+    explanation:
+      "Competitor activity is comparatively high. Check how your product and offer would differ from existing listings.",
+  },
+  {
+    id: 3,
+    name: "Travel Organizer",
+    category: "Travel",
+    searchInterest: 69,
+    engagement: 64,
+    competitorActivity: 48,
+    signal: "Steady",
+    explanation:
+      "The sample indicators are moderately consistent. Check customer reviews, demand, and supplier reliability.",
+  },
+  {
+    id: 4,
+    name: "Mini Bluetooth Speaker",
+    category: "Electronics",
+    searchInterest: 45,
+    engagement: 39,
+    competitorActivity: 55,
+    signal: "Watch",
+    explanation:
+      "The sample indicators are lower than those of some other products. Gather more evidence before making a decision.",
+  },
+];
 
-  const categories = [
-    "All Categories",
-    ...new Set(products.map((product) => product.category)),
-  ];
+const navigation = [
+  { name: "Dashboard", icon: "▦" },
+  { name: "Products", icon: "□" },
+  { name: "Trend Insights", icon: "↗" },
+  { name: "AI Content", icon: "✦" },
+  { name: "Review Queue", icon: "✓" },
+];
 
-  const statuses = [
-    "All Statuses",
-    "Shortlisted",
-    "Under Review",
-    "Pending",
-  ];
+function formatCurrency(value) {
+  return `₹${Number(value).toLocaleString("en-IN")}`;
+}
 
-  const filteredProducts = products.filter((product) => {
-    const matchesSearch = product.name
-      .toLowerCase()
-      .includes(searchTerm.toLowerCase());
+function getMargin(cost, price) {
+  if (!price || price <= 0) return 0;
+  return ((price - cost) / price) * 100;
+}
 
-    const matchesCategory =
-      selectedCategory === "All Categories" ||
-      product.category === selectedCategory;
+function StatCard({ label, value, note, icon }) {
+  return (
+    <div className="stat-card">
+      <div className="stat-card-top">
+        <span>{label}</span>
+        <span className="stat-icon">{icon}</span>
+      </div>
+      <h2>{value}</h2>
+      <p>{note}</p>
+    </div>
+  );
+}
 
-    const matchesStatus =
-      selectedStatus === "All Statuses" ||
-      product.status === selectedStatus;
+function StatusBadge({ status }) {
+  const className = status.toLowerCase().replace(/\s+/g, "-");
 
-    return matchesSearch && matchesCategory && matchesStatus;
-  });
+  return <span className={`status-badge ${className}`}>{status}</span>;
+}
 
-  function handleInputChange(event) {
-    const { name, value } = event.target;
+function Dashboard({ products, setPage }) {
+  const shortlisted = products.filter(
+    (product) => product.status === "Shortlisted"
+  ).length;
 
-    setNewProduct((previousProduct) => ({
-      ...previousProduct,
-      [name]: value,
-    }));
-  }
+  return (
+    <>
+      <div className="page-heading">
+        <div>
+          <p className="eyebrow">OVERVIEW</p>
+          <h1>Dashboard</h1>
+          <p className="page-description">
+            Monitor product discovery, trend signals, and content activity.
+          </p>
+        </div>
+        <button className="primary-button" onClick={() => setPage("Products")}>
+          + Manage Products
+        </button>
+      </div>
 
-  function handleAddProduct(event) {
-    event.preventDefault();
+      <div className="demo-notice">
+        <strong>Demo mode:</strong> The dashboard currently uses sample data.
+        Values are illustrative and are not live supplier or social-media data.
+      </div>
 
-    const cost = Number(newProduct.cost);
-    const sellingPrice = Number(newProduct.sellingPrice);
-    const rating = Number(newProduct.rating);
+      <div className="stats-grid">
+        <StatCard
+          label="Products Discovered"
+          value="128"
+          note="Illustrative sample metric"
+          icon="□"
+        />
+        <StatCard
+          label="Shortlisted Products"
+          value={shortlisted + 29}
+          note="Illustrative sample metric"
+          icon="✓"
+        />
+        <StatCard
+          label="Content Generated"
+          value="18"
+          note="Illustrative sample metric"
+          icon="✦"
+        />
+        <StatCard
+          label="Pending Reviews"
+          value="5"
+          note="Illustrative sample metric"
+          icon="◷"
+        />
+      </div>
 
-    if (
-      !newProduct.name.trim() ||
-      !newProduct.category ||
-      newProduct.cost === "" ||
-      newProduct.sellingPrice === "" ||
-      newProduct.rating === ""
-    ) {
-      alert("Please fill in all product details.");
-      return;
-    }
-
-    if (
-      !Number.isFinite(cost) ||
-      !Number.isFinite(sellingPrice) ||
-      cost < 0 ||
-      sellingPrice <= 0
-    ) {
-      alert("Please enter valid cost and selling prices.");
-      return;
-    }
-
-    if (!Number.isFinite(rating) || rating < 0 || rating > 5) {
-      alert("Please enter a rating between 0 and 5.");
-      return;
-    }
-
-    const productToAdd = {
-      id: Date.now(),
-      name: newProduct.name.trim(),
-      category: newProduct.category,
-      cost,
-      sellingPrice,
-      rating,
-      status: newProduct.status,
-    };
-
-    setProducts((previousProducts) => [
-      productToAdd,
-      ...previousProducts,
-    ]);
-
-    setNewProduct({
-      name: "",
-      category: "Kitchen",
-      cost: "",
-      sellingPrice: "",
-      rating: "",
-      status: "Pending",
-    });
-
-    setShowAddForm(false);
-    setSearchTerm("");
-    setSelectedCategory("All Categories");
-    setSelectedStatus("All Statuses");
-  }
-
-  function renderProductsPage() {
-    return (
-      <>
-        <section className="page-heading">
-          <div>
-            <p className="eyebrow">PRODUCT MANAGEMENT</p>
-            <h1>Products</h1>
-            <p className="subtitle">
-              Search, filter, and manage your discovered products.
-            </p>
-          </div>
-
-          <button
-            className="primary-button"
-            onClick={() => setShowAddForm(!showAddForm)}
-          >
-            <span>＋</span> {showAddForm ? "Cancel" : "Add Product"}
-          </button>
-        </section>
-
-        {showAddForm && (
-          <section className="panel add-product-panel">
-            <div className="panel-heading">
-              <div>
-                <h2>Add a Product</h2>
-                <p>Enter product details to add it to this demo list.</p>
-              </div>
-            </div>
-
-            <form onSubmit={handleAddProduct} className="product-form">
-              <div className="form-grid">
-                <label className="form-field">
-                  <span>Product Name</span>
-                  <input
-                    type="text"
-                    name="name"
-                    placeholder="e.g. Wireless Earbuds"
-                    value={newProduct.name}
-                    onChange={handleInputChange}
-                    required
-                  />
-                </label>
-
-                <label className="form-field">
-                  <span>Category</span>
-                  <select
-                    name="category"
-                    value={newProduct.category}
-                    onChange={handleInputChange}
-                  >
-                    <option>Kitchen</option>
-                    <option>Home & Office</option>
-                    <option>Travel</option>
-                    <option>Electronics</option>
-                    <option>Fashion</option>
-                    <option>Beauty</option>
-                    <option>Other</option>
-                  </select>
-                </label>
-
-                <label className="form-field">
-                  <span>Cost Price (₹)</span>
-                  <input
-                    type="number"
-                    name="cost"
-                    min="0"
-                    step="0.01"
-                    placeholder="e.g. 500"
-                    value={newProduct.cost}
-                    onChange={handleInputChange}
-                    required
-                  />
-                </label>
-
-                <label className="form-field">
-                  <span>Selling Price (₹)</span>
-                  <input
-                    type="number"
-                    name="sellingPrice"
-                    min="0.01"
-                    step="0.01"
-                    placeholder="e.g. 999"
-                    value={newProduct.sellingPrice}
-                    onChange={handleInputChange}
-                    required
-                  />
-                </label>
-
-                <label className="form-field">
-                  <span>Rating (0–5)</span>
-                  <input
-                    type="number"
-                    name="rating"
-                    min="0"
-                    max="5"
-                    step="0.1"
-                    placeholder="e.g. 4.2"
-                    value={newProduct.rating}
-                    onChange={handleInputChange}
-                    required
-                  />
-                </label>
-
-                <label className="form-field">
-                  <span>Status</span>
-                  <select
-                    name="status"
-                    value={newProduct.status}
-                    onChange={handleInputChange}
-                  >
-                    <option>Pending</option>
-                    <option>Under Review</option>
-                    <option>Shortlisted</option>
-                  </select>
-                </label>
-              </div>
-
-              <div className="form-actions">
-                <button
-                  type="button"
-                  className="secondary-button"
-                  onClick={() => setShowAddForm(false)}
-                >
-                  Cancel
-                </button>
-
-                <button type="submit" className="primary-button">
-                  Save Product
-                </button>
-              </div>
-            </form>
-          </section>
-        )}
-
-        <section className="panel products-panel">
+      <div className="content-grid">
+        <section className="panel">
           <div className="panel-heading">
             <div>
-              <h2>Product List</h2>
-              <p>
-                Showing {filteredProducts.length} of {products.length} products
-              </p>
+              <h2>Recent Products</h2>
+              <p>Products currently in your demo workspace.</p>
             </div>
-            <span className="demo-label">DEMO DATA</span>
-          </div>
-
-          <div className="product-filters">
-            <label className="filter-field">
-              <span>Search products</span>
-              <input
-                type="search"
-                placeholder="Search by product name..."
-                value={searchTerm}
-                onChange={(event) => setSearchTerm(event.target.value)}
-              />
-            </label>
-
-            <label className="filter-field">
-              <span>Category</span>
-              <select
-                value={selectedCategory}
-                onChange={(event) => setSelectedCategory(event.target.value)}
-              >
-                {categories.map((category) => (
-                  <option key={category}>{category}</option>
-                ))}
-              </select>
-            </label>
-
-            <label className="filter-field">
-              <span>Status</span>
-              <select
-                value={selectedStatus}
-                onChange={(event) => setSelectedStatus(event.target.value)}
-              >
-                {statuses.map((status) => (
-                  <option key={status}>{status}</option>
-                ))}
-              </select>
-            </label>
-
-            <button
-              className="secondary-button clear-filters-button"
-              onClick={() => {
-                setSearchTerm("");
-                setSelectedCategory("All Categories");
-                setSelectedStatus("All Statuses");
-              }}
-            >
-              Clear Filters
+            <button className="text-button" onClick={() => setPage("Products")}>
+              View all →
             </button>
           </div>
 
@@ -430,366 +191,729 @@ function App() {
             <table>
               <thead>
                 <tr>
-                  <th>PRODUCT</th>
-                  <th>CATEGORY</th>
-                  <th>COST</th>
-                  <th>SELLING PRICE</th>
-                  <th>MARGIN</th>
-                  <th>RATING</th>
-                  <th>STATUS</th>
+                  <th>Product</th>
+                  <th>Category</th>
+                  <th>Selling Price</th>
+                  <th>Status</th>
                 </tr>
               </thead>
-
               <tbody>
-                {filteredProducts.map((product) => (
+                {products.slice(0, 4).map((product) => (
                   <tr key={product.id}>
-                    <td>
-                      <div className="product-name">
-                        <div className="product-placeholder">
-                          {product.name.charAt(0).toUpperCase()}
-                        </div>
-                        <strong>{product.name}</strong>
-                      </div>
-                    </td>
-
+                    <td>{product.name}</td>
                     <td>{product.category}</td>
-                    <td>{formatPrice(product.cost)}</td>
-                    <td>{formatPrice(product.sellingPrice)}</td>
-                    <td className="margin">{calculateMargin(product)}</td>
-                    <td>★ {Number(product.rating).toFixed(1)}</td>
-
+                    <td>{formatCurrency(product.price)}</td>
                     <td>
-                      <span className={getStatusClass(product.status)}>
-                        {product.status}
-                      </span>
+                      <StatusBadge status={product.status} />
                     </td>
                   </tr>
                 ))}
-
-                {filteredProducts.length === 0 && (
-                  <tr>
-                    <td colSpan="7" className="empty-table-message">
-                      No products match your search or filters.
-                    </td>
-                  </tr>
-                )}
               </tbody>
             </table>
           </div>
-
-          <div className="demo-notice">
-            <span>ⓘ</span>
-            Products are stored in the page's temporary React state. They are
-            sample data and will reset when the page is reloaded.
-          </div>
         </section>
-      </>
-    );
-  }
 
-  function renderPlaceholderPage() {
-    let description = "";
+        <section className="panel workflow-panel">
+          <div className="panel-heading">
+            <div>
+              <h2>Project Workflow</h2>
+              <p>ShopMate.ai development pipeline.</p>
+            </div>
+          </div>
 
-    switch (activePage) {
-      case "Trend Insights":
-        description =
-          "Explore product trends and available signals. Trend analysis features will be added here.";
-        break;
-
-      case "AI Content":
-        description =
-          "Prepare marketing content for your products. AI content generation will be added here.";
-        break;
-
-      case "Review Queue":
-        description =
-          "Review AI-generated content before publication. Review and approval controls will be added here.";
-        break;
-
-      default:
-        description = "Explore the ShopMate.ai workspace.";
-    }
-
-    return (
-      <section className="page-heading">
-        <div>
-          <p className="eyebrow">WORKSPACE</p>
-          <h1>{activePage}</h1>
-          <p className="subtitle">{description}</p>
-        </div>
-      </section>
-    );
-  }
-
-  function renderDashboard() {
-    return (
-      <>
-        <section className="page-heading">
-          <div>
-            <p className="eyebrow">OVERVIEW</p>
-            <h1>Dashboard</h1>
-            <p className="subtitle">
-              Discover products, explore trends, and create marketing content.
-            </p>
+          <div className="workflow-list">
+            <div className="workflow-item">
+              <span className="workflow-number">1</span>
+              <div>
+                <h3>Product Sourcing</h3>
+                <p>Collect and filter product information.</p>
+              </div>
+            </div>
+            <div className="workflow-item">
+              <span className="workflow-number">2</span>
+              <div>
+                <h3>Trend Insights</h3>
+                <p>Review signals and compare products.</p>
+              </div>
+            </div>
+            <div className="workflow-item">
+              <span className="workflow-number">3</span>
+              <div>
+                <h3>AI Content</h3>
+                <p>Prepare product marketing content.</p>
+              </div>
+            </div>
+            <div className="workflow-item">
+              <span className="workflow-number">4</span>
+              <div>
+                <h3>Human Review</h3>
+                <p>Check content before any publishing.</p>
+              </div>
+            </div>
           </div>
 
           <button
-            className="primary-button"
-            onClick={() => setActivePage("Products")}
+            className="secondary-button full-width"
+            onClick={() => setPage("Trend Insights")}
           >
-            <span>＋</span> Discover Products
+            Explore Trend Insights
           </button>
         </section>
+      </div>
+    </>
+  );
+}
 
-        <section className="overview-grid">
-          {overview.map((item) => (
-            <article className="overview-card" key={item.label}>
-              <div className="card-top">
-                <span className="card-label">{item.label}</span>
-                <span className="card-icon">{item.icon}</span>
-              </div>
+function ProductsPage({ products, setProducts }) {
+  const [search, setSearch] = useState("");
+  const [categoryFilter, setCategoryFilter] = useState("All");
+  const [statusFilter, setStatusFilter] = useState("All");
+  const [showForm, setShowForm] = useState(false);
+  const [form, setForm] = useState({
+    name: "",
+    category: "",
+    cost: "",
+    price: "",
+    rating: "",
+    status: "Pending",
+  });
+  const [error, setError] = useState("");
 
-              <h2>{item.value}</h2>
-              <p>{item.note}</p>
-            </article>
-          ))}
-        </section>
+  const categories = [
+    "All",
+    ...new Set(products.map((product) => product.category)),
+  ];
 
-        <section className="content-grid">
-          <article className="panel products-panel">
-            <div className="panel-heading">
-              <div>
-                <h2>Recent Products</h2>
-                <p>Example products for the dashboard preview</p>
-              </div>
+  const filteredProducts = products.filter((product) => {
+    const matchesSearch = product.name
+      .toLowerCase()
+      .includes(search.toLowerCase());
 
-              <button
-                className="text-button"
-                onClick={() => setActivePage("Products")}
-              >
-                View all <span>→</span>
-              </button>
-            </div>
+    const matchesCategory =
+      categoryFilter === "All" || product.category === categoryFilter;
 
-            <div className="table-wrapper">
-              <table>
-                <thead>
-                  <tr>
-                    <th>PRODUCT</th>
-                    <th>CATEGORY</th>
-                    <th>COST</th>
-                    <th>SELLING PRICE</th>
-                    <th>MARGIN</th>
-                    <th>RATING</th>
-                    <th>STATUS</th>
-                  </tr>
-                </thead>
+    const matchesStatus =
+      statusFilter === "All" || product.status === statusFilter;
 
-                <tbody>
-                  {products.slice(0, 4).map((product) => (
-                    <tr key={product.id}>
-                      <td>
-                        <div className="product-name">
-                          <div className="product-placeholder">
-                            {product.name.charAt(0).toUpperCase()}
-                          </div>
-                          <strong>{product.name}</strong>
-                        </div>
-                      </td>
+    return matchesSearch && matchesCategory && matchesStatus;
+  });
 
-                      <td>{product.category}</td>
-                      <td>{formatPrice(product.cost)}</td>
-                      <td>{formatPrice(product.sellingPrice)}</td>
-                      <td className="margin">{calculateMargin(product)}</td>
-                      <td>★ {Number(product.rating).toFixed(1)}</td>
+  function updateForm(event) {
+    const { name, value } = event.target;
+    setForm((previous) => ({ ...previous, [name]: value }));
+  }
 
-                      <td>
-                        <span className={getStatusClass(product.status)}>
-                          {product.status}
-                        </span>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
+  function addProduct(event) {
+    event.preventDefault();
+    setError("");
 
-            <div className="demo-notice">
-              <span>ⓘ</span>
-              These are illustrative sample products, not live supplier
-              listings.
-            </div>
-          </article>
+    const cost = Number(form.cost);
+    const price = Number(form.price);
+    const rating = Number(form.rating);
 
-          <article className="panel activity-panel">
-            <div className="panel-heading">
-              <div>
-                <h2>Workflow</h2>
-                <p>Your AI-assisted process</p>
-              </div>
-            </div>
+    if (!form.name.trim() || !form.category.trim()) {
+      setError("Please enter a product name and category.");
+      return;
+    }
 
-            <div className="workflow">
-              <div className="workflow-step">
-                <div className="workflow-icon completed">✓</div>
-                <div>
-                  <h3>Product Discovery</h3>
-                  <p>Collect product information</p>
-                </div>
-                <span className="step-tag">1</span>
-              </div>
+    if (
+      form.cost === "" ||
+      form.price === "" ||
+      !Number.isFinite(cost) ||
+      !Number.isFinite(price) ||
+      cost < 0 ||
+      price <= 0
+    ) {
+      setError("Enter a valid cost and selling price.");
+      return;
+    }
 
-              <div className="workflow-line"></div>
+    if (
+      form.rating !== "" &&
+      (!Number.isFinite(rating) || rating < 0 || rating > 5)
+    ) {
+      setError("Rating must be between 0 and 5.");
+      return;
+    }
 
-              <div className="workflow-step">
-                <div className="workflow-icon completed">✓</div>
-                <div>
-                  <h3>Filter &amp; Trend Analysis</h3>
-                  <p>Apply rules and inspect signals</p>
-                </div>
-                <span className="step-tag">2</span>
-              </div>
+    const newProduct = {
+      id: Date.now(),
+      name: form.name.trim(),
+      category: form.category.trim(),
+      cost,
+      price,
+      rating: form.rating === "" ? 0 : rating,
+      status: form.status,
+    };
 
-              <div className="workflow-line"></div>
-
-              <div className="workflow-step">
-                <div className="workflow-icon">✎</div>
-                <div>
-                  <h3>Generate Content</h3>
-                  <p>Create scripts and captions</p>
-                </div>
-                <span className="step-tag">3</span>
-              </div>
-
-              <div className="workflow-line"></div>
-
-              <div className="workflow-step">
-                <div className="workflow-icon">✓</div>
-                <div>
-                  <h3>Human Review</h3>
-                  <p>Review before publishing</p>
-                </div>
-                <span className="step-tag">4</span>
-              </div>
-            </div>
-
-            <div className="approval-note">
-              <strong>Human approval required</strong>
-              <p>
-                AI-generated content must be reviewed and approved before it
-                can be published.
-              </p>
-            </div>
-          </article>
-        </section>
-
-        <section className="bottom-grid">
-          <article className="mini-panel">
-            <div className="mini-icon trend-icon">↗</div>
-
-            <div>
-              <h3>Trend Insights</h3>
-              <p>Explore product signals and momentum.</p>
-            </div>
-
-            <button
-              className="coming-soon"
-              onClick={() => setActivePage("Trend Insights")}
-            >
-              Explore →
-            </button>
-          </article>
-
-          <article className="mini-panel">
-            <div className="mini-icon content-icon">✎</div>
-
-            <div>
-              <h3>AI Content Studio</h3>
-              <p>Prepare product scripts and captions.</p>
-            </div>
-
-            <button
-              className="coming-soon"
-              onClick={() => setActivePage("AI Content")}
-            >
-              Explore →
-            </button>
-          </article>
-        </section>
-
-        <footer className="footer">
-          <span>ShopMate.ai</span>
-          <span>
-            AI-assisted product discovery · Human-reviewed content
-          </span>
-        </footer>
-      </>
-    );
+    setProducts((previous) => [newProduct, ...previous]);
+    setForm({
+      name: "",
+      category: "",
+      cost: "",
+      price: "",
+      rating: "",
+      status: "Pending",
+    });
+    setShowForm(false);
   }
 
   return (
-    <div className="app">
-      <aside className="sidebar">
-        <div className="brand">
-          <div className="brand-icon">S</div>
+    <>
+      <div className="page-heading">
+        <div>
+          <p className="eyebrow">PRODUCT DISCOVERY</p>
+          <h1>Products</h1>
+          <p className="page-description">
+            Add, search, and review products in your workspace.
+          </p>
+        </div>
+        <button
+          className="primary-button"
+          onClick={() => setShowForm((previous) => !previous)}
+        >
+          {showForm ? "Close Form" : "+ Add Product"}
+        </button>
+      </div>
 
+      <div className="demo-notice">
+        <strong>Demo mode:</strong> Products added here are stored in React
+        state. They will reset when the page is refreshed.
+      </div>
+
+      {showForm && (
+        <section className="panel form-panel">
+          <div className="panel-heading">
+            <div>
+              <h2>Add a Product</h2>
+              <p>Enter product details below.</p>
+            </div>
+          </div>
+
+          <form onSubmit={addProduct}>
+            <div className="form-grid">
+              <label>
+                Product Name *
+                <input
+                  name="name"
+                  value={form.name}
+                  onChange={updateForm}
+                  placeholder="e.g. Wireless Headphones"
+                />
+              </label>
+
+              <label>
+                Category *
+                <input
+                  name="category"
+                  value={form.category}
+                  onChange={updateForm}
+                  placeholder="e.g. Electronics"
+                />
+              </label>
+
+              <label>
+                Supplier Cost (₹) *
+                <input
+                  name="cost"
+                  type="number"
+                  min="0"
+                  step="0.01"
+                  value={form.cost}
+                  onChange={updateForm}
+                  placeholder="e.g. 1200"
+                />
+              </label>
+
+              <label>
+                Selling Price (₹) *
+                <input
+                  name="price"
+                  type="number"
+                  min="0.01"
+                  step="0.01"
+                  value={form.price}
+                  onChange={updateForm}
+                  placeholder="e.g. 1999"
+                />
+              </label>
+
+              <label>
+                Rating (0–5)
+                <input
+                  name="rating"
+                  type="number"
+                  min="0"
+                  max="5"
+                  step="0.1"
+                  value={form.rating}
+                  onChange={updateForm}
+                  placeholder="e.g. 4.5"
+                />
+              </label>
+
+              <label>
+                Status
+                <select name="status" value={form.status} onChange={updateForm}>
+                  <option>Pending</option>
+                  <option>Under Review</option>
+                  <option>Shortlisted</option>
+                </select>
+              </label>
+            </div>
+
+            {error && <p className="form-error">{error}</p>}
+
+            <div className="form-actions">
+              <button type="submit" className="primary-button">
+                Save Product
+              </button>
+              <button
+                type="button"
+                className="secondary-button"
+                onClick={() => {
+                  setShowForm(false);
+                  setError("");
+                }}
+              >
+                Cancel
+              </button>
+            </div>
+          </form>
+        </section>
+      )}
+
+      <section className="panel">
+        <div className="panel-heading">
           <div>
-            <h2>
-              ShopMate<span>.ai</span>
-            </h2>
-            <p>AI Commerce Assistant</p>
+            <h2>Product List</h2>
+            <p>
+              Showing {filteredProducts.length} of {products.length} products.
+            </p>
           </div>
         </div>
 
-        <div className="nav-label">WORKSPACE</div>
+        <div className="filter-row">
+          <input
+            className="search-input"
+            type="search"
+            placeholder="Search products..."
+            value={search}
+            onChange={(event) => setSearch(event.target.value)}
+          />
 
-        <nav className="navigation">
-          {pages.map((page) => (
-            <a
-              key={page}
-              href={`#${page.toLowerCase().replaceAll(" ", "-")}`}
-              className={`nav-item ${activePage === page ? "active" : ""}`}
-              onClick={(event) => {
-                event.preventDefault();
-                setActivePage(page);
-              }}
-            >
-              <span>{getPageIcon(page)}</span>
-              {page}
-            </a>
-          ))}
-        </nav>
+          <select
+            value={categoryFilter}
+            onChange={(event) => setCategoryFilter(event.target.value)}
+            aria-label="Filter by category"
+          >
+            {categories.map((category) => (
+              <option key={category} value={category}>
+                {category === "All" ? "All Categories" : category}
+              </option>
+            ))}
+          </select>
 
-        <div className="sidebar-bottom">
-          <div className="demo-badge">
-            <span className="status-dot"></span>
-            Demo Mode
-          </div>
-
-          <p>ShopMate.ai · Semester 5 Project</p>
+          <select
+            value={statusFilter}
+            onChange={(event) => setStatusFilter(event.target.value)}
+            aria-label="Filter by status"
+          >
+            <option value="All">All Statuses</option>
+            <option value="Pending">Pending</option>
+            <option value="Under Review">Under Review</option>
+            <option value="Shortlisted">Shortlisted</option>
+          </select>
         </div>
-      </aside>
 
-      <main className="main-content">
-        <header className="topbar">
-          <div className="breadcrumb">
-            Workspace <span>/</span> <strong>{activePage}</strong>
-          </div>
+        <div className="table-wrapper">
+          <table>
+            <thead>
+              <tr>
+                <th>Product</th>
+                <th>Category</th>
+                <th>Cost</th>
+                <th>Selling Price</th>
+                <th>Margin</th>
+                <th>Rating</th>
+                <th>Status</th>
+              </tr>
+            </thead>
+            <tbody>
+              {filteredProducts.map((product) => (
+                <tr key={product.id}>
+                  <td>{product.name}</td>
+                  <td>{product.category}</td>
+                  <td>{formatCurrency(product.cost)}</td>
+                  <td>{formatCurrency(product.price)}</td>
+                  <td>{getMargin(product.cost, product.price).toFixed(1)}%</td>
+                  <td>{product.rating.toFixed(1)} / 5</td>
+                  <td>
+                    <StatusBadge status={product.status} />
+                  </td>
+                </tr>
+              ))}
 
-          <div className="topbar-right">
-            <span className="demo-label">DEMO DATA</span>
-            <div className="avatar">M</div>
-          </div>
-        </header>
+              {filteredProducts.length === 0 && (
+                <tr>
+                  <td colSpan="7" className="empty-state">
+                    No products match your search or filters.
+                  </td>
+                </tr>
+              )}
+            </tbody>
+          </table>
+        </div>
+      </section>
+    </>
+  );
+}
 
-        {activePage === "Dashboard" && renderDashboard()}
-        {activePage === "Products" && renderProductsPage()}
-        {activePage !== "Dashboard" &&
-          activePage !== "Products" &&
-          renderPlaceholderPage()}
-      </main>
+function SignalScore({ label, score }) {
+  return (
+    <div className="signal-score">
+      <div className="signal-score-track">
+        <div
+          className="signal-score-fill"
+          style={{ width: `${Math.max(0, Math.min(100, score))}%` }}
+        />
+      </div>
+      <span>
+        {label}: <strong>{score}/100</strong>
+      </span>
     </div>
   );
 }
 
-export default App;
+function TrendInsightsPage() {
+  const [search, setSearch] = useState("");
+  const [categoryFilter, setCategoryFilter] = useState("All");
+  const [signalFilter, setSignalFilter] = useState("All");
+
+  const categories = ["All", ...new Set(initialTrends.map((item) => item.category))];
+
+  const filteredTrends = useMemo(() => {
+    return initialTrends.filter((item) => {
+      const matchesSearch = item.name
+        .toLowerCase()
+        .includes(search.toLowerCase());
+
+      const matchesCategory =
+        categoryFilter === "All" || item.category === categoryFilter;
+
+      const matchesSignal =
+        signalFilter === "All" || item.signal === signalFilter;
+
+      return matchesSearch && matchesCategory && matchesSignal;
+    });
+  }, [search, categoryFilter, signalFilter]);
+
+  const risingCount = initialTrends.filter(
+    (item) => item.signal === "Rising"
+  ).length;
+
+  const steadyCount = initialTrends.filter(
+    (item) => item.signal === "Steady"
+  ).length;
+
+  const watchCount = initialTrends.filter(
+    (item) => item.signal === "Watch"
+  ).length;
+
+  function clearFilters() {
+    setSearch("");
+    setCategoryFilter("All");
+    setSignalFilter("All");
+  }
+
+  return (
+    <>
+      <div className="page-heading">
+        <div>
+          <p className="eyebrow">PRODUCT ANALYSIS</p>
+          <h1>Trend Insights</h1>
+          <p className="page-description">
+            Compare illustrative indicators to help review products.
+          </p>
+        </div>
+      </div>
+
+      <div className="demo-notice trend-demo-notice">
+        <strong>Sample data only:</strong> These scores are illustrative values
+        for the project interface. They are not live search, engagement, or
+        competitor measurements, and they do not predict virality.
+      </div>
+
+      <div className="stats-grid trend-overview-grid">
+        <StatCard
+          label="Products Analyzed"
+          value={initialTrends.length}
+          note="Sample product records"
+          icon="▦"
+        />
+        <StatCard
+          label="Rising Signals"
+          value={risingCount}
+          note="Sample classification"
+          icon="↗"
+        />
+        <StatCard
+          label="Steady Signals"
+          value={steadyCount}
+          note="Sample classification"
+          icon="→"
+        />
+        <StatCard
+          label="Needs Monitoring"
+          value={watchCount}
+          note="Sample classification"
+          icon="◷"
+        />
+      </div>
+
+      <section className="panel trend-panel">
+        <div className="panel-heading">
+          <div>
+            <h2>Product Trend Signals</h2>
+            <p>Search and filter the sample product indicators.</p>
+          </div>
+        </div>
+
+        <div className="filter-row trend-filters">
+          <input
+            className="search-input"
+            type="search"
+            placeholder="Search products..."
+            value={search}
+            onChange={(event) => setSearch(event.target.value)}
+          />
+
+          <select
+            value={categoryFilter}
+            onChange={(event) => setCategoryFilter(event.target.value)}
+            aria-label="Filter trends by category"
+          >
+            {categories.map((category) => (
+              <option key={category} value={category}>
+                {category === "All" ? "All Categories" : category}
+              </option>
+            ))}
+          </select>
+
+          <select
+            value={signalFilter}
+            onChange={(event) => setSignalFilter(event.target.value)}
+            aria-label="Filter trends by signal"
+          >
+            <option value="All">All Signals</option>
+            <option value="Rising">Rising</option>
+            <option value="Steady">Steady</option>
+            <option value="Watch">Watch</option>
+          </select>
+
+          <button className="secondary-button" onClick={clearFilters}>
+            Clear Filters
+          </button>
+        </div>
+
+        <p className="results-count">
+          Showing {filteredTrends.length} of {initialTrends.length} products.
+        </p>
+
+        <div className="table-wrapper">
+          <table>
+            <thead>
+              <tr>
+                <th>Product</th>
+                <th>Category</th>
+                <th>Search Interest</th>
+                <th>Engagement</th>
+                <th>Competitor Activity</th>
+                <th>Signal</th>
+              </tr>
+            </thead>
+            <tbody>
+              {filteredTrends.map((item) => (
+                <tr key={item.id}>
+                  <td>{item.name}</td>
+                  <td>{item.category}</td>
+                  <td>
+                    <SignalScore label="Search" score={item.searchInterest} />
+                  </td>
+                  <td>
+                    <SignalScore label="Engagement" score={item.engagement} />
+                  </td>
+                  <td>
+                    <SignalScore
+                      label="Competitors"
+                      score={item.competitorActivity}
+                    />
+                  </td>
+                  <td>
+                    <StatusBadge status={item.signal} />
+                  </td>
+                </tr>
+              ))}
+
+              {filteredTrends.length === 0 && (
+                <tr>
+                  <td colSpan="6" className="empty-state">
+                    No trend records match your search or filters.
+                  </td>
+                </tr>
+              )}
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      <section className="panel trend-explanation-panel">
+        <div className="panel-heading">
+          <div>
+            <h2>Signal Explanations</h2>
+            <p>Review the sample reasoning for each product.</p>
+          </div>
+        </div>
+
+        <div className="trend-explanation-grid">
+          {filteredTrends.map((item) => (
+            <article className="trend-explanation-card" key={item.id}>
+              <div className="trend-explanation-top">
+                <h3>{item.name}</h3>
+                <StatusBadge status={item.signal} />
+              </div>
+              <p>{item.explanation}</p>
+            </article>
+          ))}
+
+          {filteredTrends.length === 0 && (
+            <p className="empty-state">
+              No explanations to show for the current filters.
+            </p>
+          )}
+        </div>
+
+        <div className="demo-notice trend-method-note">
+          <strong>How to read the scores:</strong> Each indicator is shown on a
+          0–100 scale for demonstration. In a connected version, these values
+          would need to come from verified data sources and a documented
+          scoring method. A high score alone does not establish that a product
+          will sell well.
+        </div>
+      </section>
+    </>
+  );
+}
+
+function PlaceholderPage({ page }) {
+  const details = {
+    "AI Content": {
+      heading: "AI Content Studio",
+      description:
+        "Create and manage product descriptions, captions, and marketing ideas.",
+      message:
+        "The content-generation form will be added in the next development step.",
+    },
+    "Review Queue": {
+      heading: "Review Queue",
+      description:
+        "Review generated content before it can be approved for publishing.",
+      message:
+        "The review and approval workflow will be added in a later step.",
+    },
+  };
+
+  const current = details[page] || {
+    heading: page,
+    description: "This section is part of the ShopMate.ai workspace.",
+    message: "This page is not implemented yet.",
+  };
+
+  return (
+    <div className="page-heading">
+      <div>
+        <p className="eyebrow">SHOPMATE.AI WORKSPACE</p>
+        <h1>{current.heading}</h1>
+        <p className="page-description">{current.description}</p>
+      </div>
+
+      <section className="panel placeholder-panel">
+        <div className="placeholder-icon">✦</div>
+        <h2>Coming in the next step</h2>
+        <p>{current.message}</p>
+      </section>
+    </div>
+  );
+}
+
+export default function App() {
+  const [page, setPage] = useState("Dashboard");
+  const [products, setProducts] = useState(initialProducts);
+
+  function renderPage() {
+    if (page === "Dashboard") {
+      return <Dashboard products={products} setPage={setPage} />;
+    }
+
+    if (page === "Products") {
+      return <ProductsPage products={products} setProducts={setProducts} />;
+    }
+
+    if (page === "Trend Insights") {
+      return <TrendInsightsPage />;
+    }
+
+    return <PlaceholderPage page={page} />;
+  }
+
+  return (
+    <div className="app-layout">
+      <aside className="sidebar">
+        <div className="brand">
+          <div className="brand-mark">S</div>
+          <div>
+            <h2>ShopMate.ai</h2>
+            <p>Smart product workspace</p>
+          </div>
+        </div>
+
+        <p className="sidebar-label">WORKSPACE</p>
+
+        <nav className="sidebar-nav">
+          {navigation.map((item) => (
+            <button
+              key={item.name}
+              className={`nav-link ${page === item.name ? "active" : ""}`}
+              onClick={() => setPage(item.name)}
+            >
+              <span className="nav-icon">{item.icon}</span>
+              <span>{item.name}</span>
+            </button>
+          ))}
+        </nav>
+
+        <div className="sidebar-footer">
+          <div className="user-avatar">M</div>
+          <div>
+            <strong>Project Workspace</strong>
+            <p>Semester 5 · AIOT</p>
+          </div>
+        </div>
+      </aside>
+
+      <main className="main-area">
+        <header className="topbar">
+          <div className="breadcrumb">
+            Workspace <span>/</span> <strong>{page}</strong>
+          </div>
+          <div className="demo-label">
+            <span className="demo-dot" />
+            Demo Workspace
+          </div>
+        </header>
+
+        <div className="page-content">{renderPage()}</div>
+      </main>
+    </div>
+  );
+}
