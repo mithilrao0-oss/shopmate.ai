@@ -1,3 +1,4 @@
+import { useState } from "react";
 import "./App.css";
 
 const products = [
@@ -66,14 +67,84 @@ const overview = [
   },
 ];
 
+const pages = [
+  "Dashboard",
+  "Products",
+  "Trend Insights",
+  "AI Content",
+  "Review Queue",
+];
+
+function getPageIcon(page) {
+  switch (page) {
+    case "Dashboard":
+      return "▦";
+    case "Products":
+      return "□";
+    case "Trend Insights":
+      return "↗";
+    case "AI Content":
+      return "✎";
+    case "Review Queue":
+      return "✓";
+    default:
+      return "•";
+  }
+}
+
 function App() {
+  const [activePage, setActivePage] = useState("Dashboard");
+
+  function renderPlaceholderPage() {
+    let description = "";
+
+    switch (activePage) {
+      case "Products":
+        description =
+          "View and manage discovered products. Product management features will be added here.";
+        break;
+
+      case "Trend Insights":
+        description =
+          "Explore product trends and available signals. Trend analysis features will be added here.";
+        break;
+
+      case "AI Content":
+        description =
+          "Prepare marketing content for your products. AI content generation will be added here.";
+        break;
+
+      case "Review Queue":
+        description =
+          "Review AI-generated content before publication. Review and approval controls will be added here.";
+        break;
+
+      default:
+        description = "Explore the ShopMate.ai workspace.";
+    }
+
+    return (
+      <section className="page-heading">
+        <div>
+          <p className="eyebrow">WORKSPACE</p>
+          <h1>{activePage}</h1>
+          <p className="subtitle">{description}</p>
+        </div>
+      </section>
+    );
+  }
+
   return (
     <div className="app">
+      {/* Sidebar */}
       <aside className="sidebar">
         <div className="brand">
           <div className="brand-icon">S</div>
+
           <div>
-            <h2>ShopMate<span>.ai</span></h2>
+            <h2>
+              ShopMate<span>.ai</span>
+            </h2>
             <p>AI Commerce Assistant</p>
           </div>
         </div>
@@ -81,21 +152,22 @@ function App() {
         <div className="nav-label">WORKSPACE</div>
 
         <nav className="navigation">
-          <a className="nav-item active" href="#dashboard">
-            <span>▦</span> Dashboard
-          </a>
-          <a className="nav-item" href="#products">
-            <span>□</span> Products
-          </a>
-          <a className="nav-item" href="#trends">
-            <span>↗</span> Trend Insights
-          </a>
-          <a className="nav-item" href="#content">
-            <span>✎</span> AI Content
-          </a>
-          <a className="nav-item" href="#reviews">
-            <span>✓</span> Review Queue
-          </a>
+          {pages.map((page) => (
+            <a
+              key={page}
+              href={`#${page.toLowerCase().replaceAll(" ", "-")}`}
+              className={`nav-item ${
+                activePage === page ? "active" : ""
+              }`}
+              onClick={(event) => {
+                event.preventDefault();
+                setActivePage(page);
+              }}
+            >
+              <span>{getPageIcon(page)}</span>
+              {page}
+            </a>
+          ))}
         </nav>
 
         <div className="sidebar-bottom">
@@ -103,14 +175,17 @@ function App() {
             <span className="status-dot"></span>
             Demo Mode
           </div>
+
           <p>ShopMate.ai · Semester 5 Project</p>
         </div>
       </aside>
 
-      <main className="main-content" id="dashboard">
+      {/* Main Content */}
+      <main className="main-content">
+        {/* Topbar */}
         <header className="topbar">
           <div className="breadcrumb">
-            Workspace <span>/</span> <strong>Dashboard</strong>
+            Workspace <span>/</span> <strong>{activePage}</strong>
           </div>
 
           <div className="topbar-right">
@@ -119,187 +194,236 @@ function App() {
           </div>
         </header>
 
-        <section className="page-heading">
-          <div>
-            <p className="eyebrow">OVERVIEW</p>
-            <h1>Dashboard</h1>
-            <p className="subtitle">
-              Discover products, explore trends, and create marketing content.
-            </p>
-          </div>
-
-          <button
-            className="primary-button"
-            onClick={() => alert("Product discovery will be connected in a later step.")}
-          >
-            <span>＋</span> Discover Products
-          </button>
-        </section>
-
-        <section className="overview-grid">
-          {overview.map((item) => (
-            <article className="overview-card" key={item.label}>
-              <div className="card-top">
-                <span className="card-label">{item.label}</span>
-                <span className="card-icon">{item.icon}</span>
-              </div>
-              <h2>{item.value}</h2>
-              <p>{item.note}</p>
-            </article>
-          ))}
-        </section>
-
-        <section className="content-grid">
-          <article className="panel products-panel" id="products">
-            <div className="panel-heading">
+        {/* Dashboard Page */}
+        {activePage === "Dashboard" ? (
+          <>
+            <section className="page-heading">
               <div>
-                <h2>Recent Products</h2>
-                <p>Example products for the dashboard preview</p>
+                <p className="eyebrow">OVERVIEW</p>
+                <h1>Dashboard</h1>
+                <p className="subtitle">
+                  Discover products, explore trends, and create marketing
+                  content.
+                </p>
               </div>
+
               <button
-                className="text-button"
-                onClick={() => alert("The complete product list will be added later.")}
+                className="primary-button"
+                onClick={() =>
+                  setActivePage("Products")
+                }
               >
-                View all <span>→</span>
+                <span>＋</span> Discover Products
               </button>
-            </div>
+            </section>
 
-            <div className="table-wrapper">
-              <table>
-                <thead>
-                  <tr>
-                    <th>PRODUCT</th>
-                    <th>CATEGORY</th>
-                    <th>COST</th>
-                    <th>SELLING PRICE</th>
-                    <th>MARGIN</th>
-                    <th>RATING</th>
-                    <th>STATUS</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {products.map((product) => (
-                    <tr key={product.name}>
-                      <td>
-                        <div className="product-name">
-                          <div className="product-placeholder">
-                            {product.name.charAt(0)}
-                          </div>
-                          <strong>{product.name}</strong>
-                        </div>
-                      </td>
-                      <td>{product.category}</td>
-                      <td>{product.cost}</td>
-                      <td>{product.sellingPrice}</td>
-                      <td className="margin">{product.margin}</td>
-                      <td>★ {product.rating}</td>
-                      <td>
-                        <span
-                          className={`status status-${product.status
-                            .toLowerCase()
-                            .replace(" ", "-")}`}
-                        >
-                          {product.status}
-                        </span>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
+            {/* Overview Cards */}
+            <section className="overview-grid">
+              {overview.map((item) => (
+                <article className="overview-card" key={item.label}>
+                  <div className="card-top">
+                    <span className="card-label">{item.label}</span>
+                    <span className="card-icon">{item.icon}</span>
+                  </div>
 
-            <div className="demo-notice">
-              <span>ⓘ</span>
-              These are illustrative sample products, not live supplier listings.
-            </div>
-          </article>
+                  <h2>{item.value}</h2>
+                  <p>{item.note}</p>
+                </article>
+              ))}
+            </section>
 
-          <article className="panel activity-panel" id="reviews">
-            <div className="panel-heading">
-              <div>
-                <h2>Workflow</h2>
-                <p>Your AI-assisted process</p>
-              </div>
-            </div>
+            {/* Main Dashboard Content */}
+            <section className="content-grid">
+              {/* Recent Products */}
+              <article className="panel products-panel">
+                <div className="panel-heading">
+                  <div>
+                    <h2>Recent Products</h2>
+                    <p>Example products for the dashboard preview</p>
+                  </div>
 
-            <div className="workflow">
-              <div className="workflow-step">
-                <div className="workflow-icon completed">✓</div>
-                <div>
-                  <h3>Product Discovery</h3>
-                  <p>Collect product information</p>
+                  <button
+                    className="text-button"
+                    onClick={() => setActivePage("Products")}
+                  >
+                    View all <span>→</span>
+                  </button>
                 </div>
-                <span className="step-tag">1</span>
-              </div>
 
-              <div className="workflow-line"></div>
+                <div className="table-wrapper">
+                  <table>
+                    <thead>
+                      <tr>
+                        <th>PRODUCT</th>
+                        <th>CATEGORY</th>
+                        <th>COST</th>
+                        <th>SELLING PRICE</th>
+                        <th>MARGIN</th>
+                        <th>RATING</th>
+                        <th>STATUS</th>
+                      </tr>
+                    </thead>
 
-              <div className="workflow-step">
-                <div className="workflow-icon completed">✓</div>
-                <div>
-                  <h3>Filter & Trend Analysis</h3>
-                  <p>Apply rules and inspect signals</p>
+                    <tbody>
+                      {products.map((product) => (
+                        <tr key={product.name}>
+                          <td>
+                            <div className="product-name">
+                              <div className="product-placeholder">
+                                {product.name.charAt(0)}
+                              </div>
+
+                              <strong>{product.name}</strong>
+                            </div>
+                          </td>
+
+                          <td>{product.category}</td>
+                          <td>{product.cost}</td>
+                          <td>{product.sellingPrice}</td>
+                          <td className="margin">{product.margin}</td>
+                          <td>★ {product.rating}</td>
+
+                          <td>
+                            <span
+                              className={`status status-${product.status
+                                .toLowerCase()
+                                .replace(" ", "-")}`}
+                            >
+                              {product.status}
+                            </span>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
                 </div>
-                <span className="step-tag">2</span>
-              </div>
 
-              <div className="workflow-line"></div>
-
-              <div className="workflow-step">
-                <div className="workflow-icon">✎</div>
-                <div>
-                  <h3>Generate Content</h3>
-                  <p>Create scripts and captions</p>
+                <div className="demo-notice">
+                  <span>ⓘ</span>
+                  These are illustrative sample products, not live supplier
+                  listings.
                 </div>
-                <span className="step-tag">3</span>
-              </div>
+              </article>
 
-              <div className="workflow-line"></div>
-
-              <div className="workflow-step">
-                <div className="workflow-icon">✓</div>
-                <div>
-                  <h3>Human Review</h3>
-                  <p>Review before publishing</p>
+              {/* Workflow */}
+              <article className="panel activity-panel">
+                <div className="panel-heading">
+                  <div>
+                    <h2>Workflow</h2>
+                    <p>Your AI-assisted process</p>
+                  </div>
                 </div>
-                <span className="step-tag">4</span>
-              </div>
-            </div>
 
-            <div className="approval-note">
-              <strong>Human approval required</strong>
-              <p>
-                AI-generated content must be reviewed and approved before it
-                can be published.
-              </p>
-            </div>
-          </article>
-        </section>
+                <div className="workflow">
+                  <div className="workflow-step">
+                    <div className="workflow-icon completed">✓</div>
 
-        <section className="bottom-grid">
-          <article className="mini-panel" id="trends">
-            <div className="mini-icon trend-icon">↗</div>
-            <div>
-              <h3>Trend Insights</h3>
-              <p>Explore product signals and momentum.</p>
-            </div>
-            <span className="coming-soon">Coming next</span>
-          </article>
+                    <div>
+                      <h3>Product Discovery</h3>
+                      <p>Collect product information</p>
+                    </div>
 
-          <article className="mini-panel" id="content">
-            <div className="mini-icon content-icon">✎</div>
-            <div>
-              <h3>AI Content Studio</h3>
-              <p>Prepare product scripts and captions.</p>
-            </div>
-            <span className="coming-soon">Coming next</span>
-          </article>
-        </section>
+                    <span className="step-tag">1</span>
+                  </div>
 
-        <footer className="footer">
-          <span>ShopMate.ai</span>
-          <span>AI-assisted product discovery · Human-reviewed content</span>
-        </footer>
+                  <div className="workflow-line"></div>
+
+                  <div className="workflow-step">
+                    <div className="workflow-icon completed">✓</div>
+
+                    <div>
+                      <h3>Filter &amp; Trend Analysis</h3>
+                      <p>Apply rules and inspect signals</p>
+                    </div>
+
+                    <span className="step-tag">2</span>
+                  </div>
+
+                  <div className="workflow-line"></div>
+
+                  <div className="workflow-step">
+                    <div className="workflow-icon">✎</div>
+
+                    <div>
+                      <h3>Generate Content</h3>
+                      <p>Create scripts and captions</p>
+                    </div>
+
+                    <span className="step-tag">3</span>
+                  </div>
+
+                  <div className="workflow-line"></div>
+
+                  <div className="workflow-step">
+                    <div className="workflow-icon">✓</div>
+
+                    <div>
+                      <h3>Human Review</h3>
+                      <p>Review before publishing</p>
+                    </div>
+
+                    <span className="step-tag">4</span>
+                  </div>
+                </div>
+
+                <div className="approval-note">
+                  <strong>Human approval required</strong>
+
+                  <p>
+                    AI-generated content must be reviewed and approved before
+                    it can be published.
+                  </p>
+                </div>
+              </article>
+            </section>
+
+            {/* Bottom Cards */}
+            <section className="bottom-grid">
+              <article className="mini-panel">
+                <div className="mini-icon trend-icon">↗</div>
+
+                <div>
+                  <h3>Trend Insights</h3>
+                  <p>Explore product signals and momentum.</p>
+                </div>
+
+                <button
+                  className="coming-soon"
+                  onClick={() => setActivePage("Trend Insights")}
+                >
+                  Explore →
+                </button>
+              </article>
+
+              <article className="mini-panel">
+                <div className="mini-icon content-icon">✎</div>
+
+                <div>
+                  <h3>AI Content Studio</h3>
+                  <p>Prepare product scripts and captions.</p>
+                </div>
+
+                <button
+                  className="coming-soon"
+                  onClick={() => setActivePage("AI Content")}
+                >
+                  Explore →
+                </button>
+              </article>
+            </section>
+
+            {/* Footer */}
+            <footer className="footer">
+              <span>ShopMate.ai</span>
+              <span>
+                AI-assisted product discovery · Human-reviewed content
+              </span>
+            </footer>
+          </>
+        ) : (
+          /* Placeholder Pages */
+          renderPlaceholderPage()
+        )}
       </main>
     </div>
   );
