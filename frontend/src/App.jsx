@@ -1,3 +1,4 @@
+import AIContentStudio from "./AIContentStudio";
 import { useMemo, useState } from "react";
 import "./App.css";
 
@@ -850,21 +851,25 @@ export default function App() {
   const [page, setPage] = useState("Dashboard");
   const [products, setProducts] = useState(initialProducts);
 
-  function renderPage() {
-    if (page === "Dashboard") {
-      return <Dashboard products={products} setPage={setPage} />;
-    }
-
-    if (page === "Products") {
-      return <ProductsPage products={products} setProducts={setProducts} />;
-    }
-
-    if (page === "Trend Insights") {
-      return <TrendInsightsPage />;
-    }
-
-    return <PlaceholderPage page={page} />;
+function renderPage() {
+  if (page === "Dashboard") {
+    return <Dashboard products={products} setPage={setPage} />;
   }
+
+  if (page === "Products") {
+    return <ProductsPage products={products} setProducts={setProducts} />;
+  }
+
+  if (page === "Trend Insights") {
+    return <TrendInsightsPage />;
+  }
+
+  if (page === "AI Content") {
+    return <AIContentStudio products={products} />;
+  }
+
+  return <PlaceholderPage page={page} />;
+}
 
   return (
     <div className="app-layout">
