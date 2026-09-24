@@ -1110,7 +1110,7 @@ tbody tr:last-child td {
   flex-shrink: 0;
 }
 
-/* Fixed, spacious content preview */
+/* Content preview */
 
 .content-output {
   display: block;
@@ -1153,7 +1153,96 @@ tbody tr:last-child td {
 }
 
 /* =========================================
-   16. PLACEHOLDER PAGES
+   16. REVIEW QUEUE
+========================================= */
+
+.review-list {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+}
+
+.review-card {
+  min-width: 0;
+  padding: 22px;
+  border: 1px solid #e9edf4;
+  border-radius: 12px;
+  background: #ffffff;
+  box-shadow: 0 3px 12px #25385805;
+}
+
+.review-card-heading {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 14px;
+  margin-bottom: 14px;
+}
+
+.review-card-heading h2 {
+  margin: 0;
+  color: #283448;
+  font-family: "Manrope", sans-serif;
+  font-size: 16px;
+  font-weight: 800;
+}
+
+.review-card-heading p {
+  margin: 6px 0 0;
+  color: #929bad;
+  font-size: 12px;
+  line-height: 1.5;
+}
+
+.review-content {
+  margin: 0;
+  padding: 16px;
+  border: 1px solid #eceaf2;
+  border-radius: 9px;
+  background: #fcfbff;
+  color: #566176;
+  font-size: 13px;
+  line-height: 1.7;
+  overflow-wrap: anywhere;
+  white-space: pre-wrap;
+}
+
+.review-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-top: 16px;
+}
+
+.review-status {
+  display: inline-flex;
+  align-items: center;
+  padding: 6px 10px;
+  border-radius: 6px;
+  background: #fff4df;
+  color: #b57a1b;
+  font-size: 11px;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.review-status.approved {
+  background: #e9f8f0;
+  color: #16865c;
+}
+
+.review-status.rejected {
+  background: #fff0f0;
+  color: #c0394b;
+}
+
+.review-status.pending {
+  background: #f0efff;
+  color: #625be0;
+}
+
+/* =========================================
+   17. PLACEHOLDER PAGES
 ========================================= */
 
 .placeholder-panel {
@@ -1183,7 +1272,7 @@ tbody tr:last-child td {
 }
 
 /* =========================================
-   17. RESPONSIVE DESIGN
+   18. RESPONSIVE DESIGN
 ========================================= */
 
 @media (max-width: 1250px) {
@@ -1342,6 +1431,10 @@ tbody tr:last-child td {
     min-height: 360px;
     max-height: 360px;
   }
+
+  .review-card {
+    padding: 17px;
+  }
 }
 
 @media (max-width: 420px) {
@@ -1371,5 +1464,9 @@ tbody tr:last-child td {
 
   .output-heading .secondary-button {
     align-self: flex-start;
+  }
+
+  .review-card-heading {
+    flex-direction: column;
   }
 }

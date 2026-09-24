@@ -1,5 +1,5 @@
 import AIContentStudio from "./AIContentStudio";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import "./App.css";
 
 const initialProducts = [
@@ -124,7 +124,7 @@ function StatusBadge({ status }) {
   return <span className={`status-badge ${className}`}>{status}</span>;
 }
 
-function Dashboard({ products, setPage }) {
+function Dashboard({ products, setPage, pendingReviewCount }) {
   const shortlisted = products.filter(
     (product) => product.status === "Shortlisted"
   ).length;
@@ -170,8 +170,8 @@ function Dashboard({ products, setPage }) {
         />
         <StatCard
           label="Pending Reviews"
-          value="5"
-          note="Illustrative sample metric"
+          value={pendingReviewCount}
+          note="Drafts awaiting review"
           icon="◷"
         />
       </div>
@@ -591,7 +591,10 @@ function TrendInsightsPage() {
   const [categoryFilter, setCategoryFilter] = useState("All");
   const [signalFilter, setSignalFilter] = useState("All");
 
-  const categories = ["All", ...new Set(initialTrends.map((item) => item.category))];
+  const categories = [
+    "All",
+    ...new Set(initialTrends.map((item) => item.category)),
+  ];
 
   const filteredTrends = useMemo(() => {
     return initialTrends.filter((item) => {
@@ -806,6 +809,82 @@ function TrendInsightsPage() {
   );
 }
 
+/* Review Queue page */
+
+function ReviewQueuePage({ reviewItems, onUpdateStatus, busyId }) {
+  const pendingItems = reviewItems.filter((item) => item.status === "Pending");
+
+  return (
+    <section>
+      <div className="page-heading">
+        <div>
+          <p className="eyebrow">CONTENT WORKSPACE</p>
+          <h1>Review Queue</h1>
+          <p className="page-description">
+            Check generated drafts and approve or reject them before use.
+          </p>
+        </div>
+      </div>
+
+      <div className="demo-notice">
+        <strong>Prototype:</strong> Drafts and review statuses are stored in the
+        local SQLite database. Nothing is published to Instagram.
+      </div>
+
+      <section className="panel">
+        <div className="panel-heading">
+          <div>
+            <h2>Pending Reviews ({pendingItems.length})</h2>
+            <p>Review each draft before deciding whether to approve it.</p>
+          </div>
+        </div>
+
+        {reviewItems.length === 0 ? (
+          <p>
+            No drafts to review yet. Generate content in AI Content Studio and
+            select “Send to Review”.
+          </p>
+        ) : (
+          <div className="review-list">
+            {reviewItems.map((item) => (
+              <article className="review-card" key={item.id}>
+                <div className="review-card-heading">
+                  <div>
+                    <h3>{item.productName}</h3>
+                    <p>{item.contentType} · {item.tone} tone</p>
+                  </div>
+                  <span className={`review-status ${item.status.toLowerCase()}`}>
+                    {item.status}
+                  </span>
+                </div>
+                <p className="review-content">{item.content}</p>
+                {item.status === "Pending" && (
+                  <div className="review-actions">
+                    <button
+                      className="primary-button"
+                      disabled={busyId === item.id}
+                      onClick={() => onUpdateStatus(item.id, "Approved")}
+                    >
+                      {busyId === item.id ? "Saving..." : "Approve"}
+                    </button>
+                    <button
+                      className="secondary-button"
+                      disabled={busyId === item.id}
+                      onClick={() => onUpdateStatus(item.id, "Rejected")}
+                    >
+                      {busyId === item.id ? "Saving..." : "Reject"}
+                    </button>
+                  </div>
+                )}
+              </article>
+            ))}
+          </div>
+        )}
+      </section>
+    </section>
+  );
+}
+
 function PlaceholderPage({ page }) {
   const details = {
     "AI Content": {
@@ -850,26 +929,107 @@ function PlaceholderPage({ page }) {
 export default function App() {
   const [page, setPage] = useState("Dashboard");
   const [products, setProducts] = useState(initialProducts);
+  const [reviewItems, setReviewItems] = useState([]);
+  const [apiError, setApiError] = useState("");
+  const [busyId, setBusyId] = useState(null);
 
-function renderPage() {
-  if (page === "Dashboard") {
-    return <Dashboard products={products} setPage={setPage} />;
+  useEffect(() => {
+    async function loadReviews() {
+      try {
+        const response = await fetch("http://localhost:5000/api/reviews");
+        if (!response.ok) throw new Error("Could not load saved drafts.");
+        const data = await response.json();
+        setReviewItems(data);
+        setApiError("");
+      } catch (error) {
+        setApiError("Cannot connect to the backend. Make sure it is running at http://localhost:5000.");
+      }
+    }
+    loadReviews();
+  }, []);
+
+  const pendingReviewCount = reviewItems.filter(
+    (item) => item.status === "Pending"
+  ).length;
+
+  async function sendDraftToReview(draft) {
+    try {
+      setApiError("");
+      const response = await fetch("http://localhost:5000/api/reviews", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(draft),
+      });
+      const savedDraft = await response.json();
+      if (!response.ok) throw new Error(savedDraft.error || "Could not save draft.");
+      setReviewItems((items) => [savedDraft, ...items]);
+      setPage("Review Queue");
+    } catch (error) {
+      setApiError(error.message || "Could not save the draft.");
+    }
   }
 
-  if (page === "Products") {
-    return <ProductsPage products={products} setProducts={setProducts} />;
+  async function updateReviewStatus(id, status) {
+    try {
+      setBusyId(id);
+      setApiError("");
+      const response = await fetch(`http://localhost:5000/api/reviews/${id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ status }),
+      });
+      const updatedDraft = await response.json();
+      if (!response.ok) throw new Error(updatedDraft.error || "Could not update draft.");
+      setReviewItems((items) =>
+        items.map((item) => item.id === updatedDraft.id ? updatedDraft : item)
+      );
+    } catch (error) {
+      setApiError(error.message || "Could not update the draft status.");
+    } finally {
+      setBusyId(null);
+    }
   }
 
-  if (page === "Trend Insights") {
-    return <TrendInsightsPage />;
-  }
+  function renderPage() {
+    if (page === "Dashboard") {
+      return (
+        <Dashboard
+          products={products}
+          setPage={setPage}
+          pendingReviewCount={pendingReviewCount}
+        />
+      );
+    }
 
-  if (page === "AI Content") {
-    return <AIContentStudio products={products} />;
-  }
+    if (page === "Products") {
+      return <ProductsPage products={products} setProducts={setProducts} />;
+    }
 
-  return <PlaceholderPage page={page} />;
-}
+    if (page === "Trend Insights") {
+      return <TrendInsightsPage />;
+    }
+
+    if (page === "AI Content") {
+      return (
+        <AIContentStudio
+          products={products}
+          onSendToReview={sendDraftToReview}
+        />
+      );
+    }
+
+    if (page === "Review Queue") {
+      return (
+        <ReviewQueuePage
+          reviewItems={reviewItems}
+          onUpdateStatus={updateReviewStatus}
+          busyId={busyId}
+        />
+      );
+    }
+
+    return <PlaceholderPage page={page} />;
+  }
 
   return (
     <div className="app-layout">
@@ -917,7 +1077,10 @@ function renderPage() {
           </div>
         </header>
 
-        <div className="page-content">{renderPage()}</div>
+        <div className="page-content">
+          {apiError && <div className="demo-notice"><strong>Backend:</strong> {apiError}</div>}
+          {renderPage()}
+        </div>
       </main>
     </div>
   );

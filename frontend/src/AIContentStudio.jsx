@@ -56,13 +56,17 @@ ${price ? `Price: ${price}\n` : ""}Call to Action:
 "Explore this product on ShopMate.ai."`;
 }
 
-export default function AIContentStudio({ products = sampleProducts }) {
+export default function AIContentStudio({
+  products = sampleProducts,
+  onSendToReview,
+}) {
   const availableProducts =
     Array.isArray(products) && products.length > 0 ? products : sampleProducts;
 
   const [selectedProductId, setSelectedProductId] = useState(
     String(availableProducts[0]?.id ?? availableProducts[0]?.name ?? "")
   );
+
   const [contentType, setContentType] = useState("Product Caption");
   const [tone, setTone] = useState("Friendly");
   const [generatedContent, setGeneratedContent] = useState("");
@@ -70,8 +74,7 @@ export default function AIContentStudio({ products = sampleProducts }) {
 
   const selectedProduct =
     availableProducts.find(
-      (product) =>
-        String(product.id ?? product.name) === selectedProductId
+      (product) => String(product.id ?? product.name) === selectedProductId
     ) ?? availableProducts[0];
 
   function handleGenerate() {
@@ -80,10 +83,29 @@ export default function AIContentStudio({ products = sampleProducts }) {
       return;
     }
 
-    setGeneratedContent(
-      createContent(selectedProduct, contentType, tone)
-    );
+    setGeneratedContent(createContent(selectedProduct, contentType, tone));
     setMessage("Demo content generated. Review and edit it before use.");
+  }
+
+  function handleSendToReview() {
+    if (!generatedContent.trim()) {
+      setMessage("Generate content before sending it for review.");
+      return;
+    }
+
+    if (!onSendToReview) {
+      setMessage("The review queue is not connected.");
+      return;
+    }
+
+    onSendToReview({
+      productName: selectedProduct?.name ?? "Unknown product",
+      contentType,
+      tone,
+      content: generatedContent,
+    });
+
+    setMessage("Draft sent to Review Queue.");
   }
 
   async function handleCopy() {
@@ -114,8 +136,8 @@ export default function AIContentStudio({ products = sampleProducts }) {
 
       <div className="demo-notice">
         <strong>Demo mode:</strong> This page currently uses sample content
-        templates. It is not connected to an AI model yet. Review and edit
-        all content before publishing.
+        templates. It is not connected to an AI model yet. Review and edit all
+        content before publishing.
       </div>
 
       <div className="content-studio-grid">
@@ -194,6 +216,14 @@ export default function AIContentStudio({ products = sampleProducts }) {
             value={generatedContent}
             onChange={(event) => setGeneratedContent(event.target.value)}
           />
+
+          <button
+            className="primary-button"
+            onClick={handleSendToReview}
+            disabled={!generatedContent.trim()}
+          >
+            Send to Review
+          </button>
 
           {message && <p className="studio-message">{message}</p>}
 
