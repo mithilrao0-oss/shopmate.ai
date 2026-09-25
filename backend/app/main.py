@@ -3,6 +3,7 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from app.database import initialize_database
 from app.routes.reviews import router as review_router
+from app.routes.products import router as products_router
 
 
 app = FastAPI(
@@ -41,3 +42,4 @@ def health_check():
 # ---------- Routes ----------
 
 app.include_router(review_router)
+app.include_router(products_router)
