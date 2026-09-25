@@ -230,6 +230,7 @@ function Dashboard({ products, setPage, pendingReviewCount }) {
                 <p>Collect and filter product information.</p>
               </div>
             </div>
+
             <div className="workflow-item">
               <span className="workflow-number">2</span>
               <div>
@@ -237,6 +238,7 @@ function Dashboard({ products, setPage, pendingReviewCount }) {
                 <p>Review signals and compare products.</p>
               </div>
             </div>
+
             <div className="workflow-item">
               <span className="workflow-number">3</span>
               <div>
@@ -244,6 +246,7 @@ function Dashboard({ products, setPage, pendingReviewCount }) {
                 <p>Prepare product marketing content.</p>
               </div>
             </div>
+
             <div className="workflow-item">
               <span className="workflow-number">4</span>
               <div>
@@ -348,6 +351,7 @@ function ProductsPage({ products, setProducts }) {
     };
 
     setProducts((previous) => [newProduct, ...previous]);
+
     setForm({
       name: "",
       category: "",
@@ -356,6 +360,7 @@ function ProductsPage({ products, setProducts }) {
       rating: "",
       status: "Pending",
     });
+
     setShowForm(false);
   }
 
@@ -369,6 +374,7 @@ function ProductsPage({ products, setProducts }) {
             Add, search, and review products in your workspace.
           </p>
         </div>
+
         <button
           className="primary-button"
           onClick={() => setShowForm((previous) => !previous)}
@@ -455,7 +461,11 @@ function ProductsPage({ products, setProducts }) {
 
               <label>
                 Status
-                <select name="status" value={form.status} onChange={updateForm}>
+                <select
+                  name="status"
+                  value={form.status}
+                  onChange={updateForm}
+                >
                   <option>Pending</option>
                   <option>Under Review</option>
                   <option>Shortlisted</option>
@@ -469,6 +479,7 @@ function ProductsPage({ products, setProducts }) {
               <button type="submit" className="primary-button">
                 Save Product
               </button>
+
               <button
                 type="button"
                 className="secondary-button"
@@ -540,6 +551,7 @@ function ProductsPage({ products, setProducts }) {
                 <th>Status</th>
               </tr>
             </thead>
+
             <tbody>
               {filteredProducts.map((product) => (
                 <tr key={product.id}>
@@ -547,8 +559,10 @@ function ProductsPage({ products, setProducts }) {
                   <td>{product.category}</td>
                   <td>{formatCurrency(product.cost)}</td>
                   <td>{formatCurrency(product.price)}</td>
-                  <td>{getMargin(product.cost, product.price).toFixed(1)}%</td>
-                  <td>{product.rating.toFixed(1)} / 5</td>
+                  <td>
+                    {getMargin(product.cost, product.price).toFixed(1)}%
+                  </td>
+                  <td>{Number(product.rating || 0).toFixed(1)} / 5</td>
                   <td>
                     <StatusBadge status={product.status} />
                   </td>
@@ -579,6 +593,7 @@ function SignalScore({ label, score }) {
           style={{ width: `${Math.max(0, Math.min(100, score))}%` }}
         />
       </div>
+
       <span>
         {label}: <strong>{score}/100</strong>
       </span>
@@ -655,18 +670,21 @@ function TrendInsightsPage() {
           note="Sample product records"
           icon="▦"
         />
+
         <StatCard
           label="Rising Signals"
           value={risingCount}
           note="Sample classification"
           icon="↗"
         />
+
         <StatCard
           label="Steady Signals"
           value={steadyCount}
           note="Sample classification"
           icon="→"
         />
+
         <StatCard
           label="Needs Monitoring"
           value={watchCount}
@@ -736,23 +754,34 @@ function TrendInsightsPage() {
                 <th>Signal</th>
               </tr>
             </thead>
+
             <tbody>
               {filteredTrends.map((item) => (
                 <tr key={item.id}>
                   <td>{item.name}</td>
                   <td>{item.category}</td>
+
                   <td>
-                    <SignalScore label="Search" score={item.searchInterest} />
+                    <SignalScore
+                      label="Search"
+                      score={item.searchInterest}
+                    />
                   </td>
+
                   <td>
-                    <SignalScore label="Engagement" score={item.engagement} />
+                    <SignalScore
+                      label="Engagement"
+                      score={item.engagement}
+                    />
                   </td>
+
                   <td>
                     <SignalScore
                       label="Competitors"
                       score={item.competitorActivity}
                     />
                   </td>
+
                   <td>
                     <StatusBadge status={item.signal} />
                   </td>
@@ -786,6 +815,7 @@ function TrendInsightsPage() {
                 <h3>{item.name}</h3>
                 <StatusBadge status={item.signal} />
               </div>
+
               <p>{item.explanation}</p>
             </article>
           ))}
@@ -812,7 +842,9 @@ function TrendInsightsPage() {
 /* Review Queue page */
 
 function ReviewQueuePage({ reviewItems, onUpdateStatus, busyId }) {
-  const pendingItems = reviewItems.filter((item) => item.status === "Pending");
+  const pendingItems = reviewItems.filter(
+    (item) => item.status === "Pending"
+  );
 
   return (
     <section>
@@ -851,13 +883,20 @@ function ReviewQueuePage({ reviewItems, onUpdateStatus, busyId }) {
                 <div className="review-card-heading">
                   <div>
                     <h3>{item.productName}</h3>
-                    <p>{item.contentType} · {item.tone} tone</p>
+                    <p>
+                      {item.contentType} · {item.tone} tone
+                    </p>
                   </div>
-                  <span className={`review-status ${item.status.toLowerCase()}`}>
+
+                  <span
+                    className={`review-status ${item.status.toLowerCase()}`}
+                  >
                     {item.status}
                   </span>
                 </div>
+
                 <p className="review-content">{item.content}</p>
+
                 {item.status === "Pending" && (
                   <div className="review-actions">
                     <button
@@ -867,6 +906,7 @@ function ReviewQueuePage({ reviewItems, onUpdateStatus, busyId }) {
                     >
                       {busyId === item.id ? "Saving..." : "Approve"}
                     </button>
+
                     <button
                       className="secondary-button"
                       disabled={busyId === item.id}
@@ -894,6 +934,7 @@ function PlaceholderPage({ page }) {
       message:
         "The content-generation form will be added in the next development step.",
     },
+
     "Review Queue": {
       heading: "Review Queue",
       description:
@@ -928,23 +969,69 @@ function PlaceholderPage({ page }) {
 
 export default function App() {
   const [page, setPage] = useState("Dashboard");
-  const [products, setProducts] = useState(initialProducts);
+
+  // Products are now loaded from the FastAPI backend.
+  const [products, setProducts] = useState([]);
+
   const [reviewItems, setReviewItems] = useState([]);
   const [apiError, setApiError] = useState("");
   const [busyId, setBusyId] = useState(null);
 
   useEffect(() => {
+    async function loadProducts() {
+      try {
+        const response = await fetch("http://localhost:5000/api/products");
+
+        if (!response.ok) {
+          throw new Error("Could not load products.");
+        }
+
+        const data = await response.json();
+
+        // Add frontend-only fields that the current Products page expects.
+        const formattedProducts = data.map((product) => ({
+          ...product,
+          cost:
+            product.cost !== undefined
+              ? Number(product.cost)
+              : Number(product.price || 0),
+          price: Number(product.price || 0),
+          rating:
+            product.rating !== undefined ? Number(product.rating) : 0,
+          status: product.status || "Pending",
+        }));
+
+        setProducts(formattedProducts);
+        setApiError("");
+      } catch (error) {
+        setApiError(
+          "Cannot connect to the backend. Make sure it is running at http://localhost:5000."
+        );
+      }
+    }
+
+    loadProducts();
+  }, []);
+
+  useEffect(() => {
     async function loadReviews() {
       try {
         const response = await fetch("http://localhost:5000/api/reviews");
-        if (!response.ok) throw new Error("Could not load saved drafts.");
+
+        if (!response.ok) {
+          throw new Error("Could not load saved drafts.");
+        }
+
         const data = await response.json();
         setReviewItems(data);
         setApiError("");
       } catch (error) {
-        setApiError("Cannot connect to the backend. Make sure it is running at http://localhost:5000.");
+        setApiError(
+          "Cannot connect to the backend. Make sure it is running at http://localhost:5000."
+        );
       }
     }
+
     loadReviews();
   }, []);
 
@@ -955,13 +1042,21 @@ export default function App() {
   async function sendDraftToReview(draft) {
     try {
       setApiError("");
+
       const response = await fetch("http://localhost:5000/api/reviews", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(draft),
       });
+
       const savedDraft = await response.json();
-      if (!response.ok) throw new Error(savedDraft.error || "Could not save draft.");
+
+      if (!response.ok) {
+        throw new Error(
+          savedDraft.error || "Could not save draft."
+        );
+      }
+
       setReviewItems((items) => [savedDraft, ...items]);
       setPage("Review Queue");
     } catch (error) {
@@ -973,18 +1068,33 @@ export default function App() {
     try {
       setBusyId(id);
       setApiError("");
-      const response = await fetch(`http://localhost:5000/api/reviews/${id}`, {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ status }),
-      });
+
+      const response = await fetch(
+        `http://localhost:5000/api/reviews/${id}`,
+        {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ status }),
+        }
+      );
+
       const updatedDraft = await response.json();
-      if (!response.ok) throw new Error(updatedDraft.error || "Could not update draft.");
+
+      if (!response.ok) {
+        throw new Error(
+          updatedDraft.error || "Could not update draft."
+        );
+      }
+
       setReviewItems((items) =>
-        items.map((item) => item.id === updatedDraft.id ? updatedDraft : item)
+        items.map((item) =>
+          item.id === updatedDraft.id ? updatedDraft : item
+        )
       );
     } catch (error) {
-      setApiError(error.message || "Could not update the draft status.");
+      setApiError(
+        error.message || "Could not update the draft status."
+      );
     } finally {
       setBusyId(null);
     }
@@ -1002,7 +1112,12 @@ export default function App() {
     }
 
     if (page === "Products") {
-      return <ProductsPage products={products} setProducts={setProducts} />;
+      return (
+        <ProductsPage
+          products={products}
+          setProducts={setProducts}
+        />
+      );
     }
 
     if (page === "Trend Insights") {
@@ -1036,6 +1151,7 @@ export default function App() {
       <aside className="sidebar">
         <div className="brand">
           <div className="brand-mark">S</div>
+
           <div>
             <h2>ShopMate.ai</h2>
             <p>Smart product workspace</p>
@@ -1048,7 +1164,9 @@ export default function App() {
           {navigation.map((item) => (
             <button
               key={item.name}
-              className={`nav-link ${page === item.name ? "active" : ""}`}
+              className={`nav-link ${
+                page === item.name ? "active" : ""
+              }`}
               onClick={() => setPage(item.name)}
             >
               <span className="nav-icon">{item.icon}</span>
@@ -1059,6 +1177,7 @@ export default function App() {
 
         <div className="sidebar-footer">
           <div className="user-avatar">M</div>
+
           <div>
             <strong>Project Workspace</strong>
             <p>Semester 5 · AIOT</p>
@@ -1071,6 +1190,7 @@ export default function App() {
           <div className="breadcrumb">
             Workspace <span>/</span> <strong>{page}</strong>
           </div>
+
           <div className="demo-label">
             <span className="demo-dot" />
             Demo Workspace
@@ -1078,7 +1198,12 @@ export default function App() {
         </header>
 
         <div className="page-content">
-          {apiError && <div className="demo-notice"><strong>Backend:</strong> {apiError}</div>}
+          {apiError && (
+            <div className="demo-notice">
+              <strong>Backend:</strong> {apiError}
+            </div>
+          )}
+
           {renderPage()}
         </div>
       </main>

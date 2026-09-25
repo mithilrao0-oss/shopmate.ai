@@ -4,6 +4,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from app.database import initialize_database
 from app.routes.reviews import router as review_router
 from app.routes.products import router as products_router
+from app.routes.ai import router as ai_router
 
 
 app = FastAPI(
@@ -12,8 +13,6 @@ app = FastAPI(
     version="1.0.0"
 )
 
-
-# ---------- CORS ----------
 
 app.add_middleware(
     CORSMiddleware,
@@ -24,12 +23,8 @@ app.add_middleware(
 )
 
 
-# ---------- Database ----------
-
 initialize_database()
 
-
-# ---------- Health ----------
 
 @app.get("/api/health")
 def health_check():
@@ -39,7 +34,6 @@ def health_check():
     }
 
 
-# ---------- Routes ----------
-
 app.include_router(review_router)
 app.include_router(products_router)
+app.include_router(ai_router)
