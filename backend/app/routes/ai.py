@@ -2,6 +2,9 @@ from fastapi import APIRouter
 from pydantic import BaseModel
 import requests
 
+from app.agent.content_agent import ShopMateContentAgent
+
+
 router = APIRouter(
     prefix="/api/ai",
     tags=["AI"]
@@ -43,49 +46,41 @@ def test_ai():
 
 @router.post("/generate")
 def generate_content(request: GenerateContentRequest):
-    category_text = request.category or "Not specified"
-    price_text = (
-        f"₹{request.price}"
-        if request.price is not None
-        else "Not specified"
+    """
+    Run the ShopMate Content Agent.
+
+    The agent:
+    1. Understands the content task.
+    2. Builds the prompt.
+    3. Calls Qwen3 through Ollama.
+    4. Runs a Responsible AI check.
+    5. Can regenerate once if the first result needs revision.
+    6. Returns the final draft for human review.
+    """
+
+    agent = ShopMateContentAgent(
+        product_name=request.product_name,
+        category=request.category,
+        price=request.price,
+        content_type=request.content_type,
+        tone=request.tone,
     )
 
-    prompt = f"""
-You are the AI content assistant for ShopMate.ai.
-
-Create a {request.content_type.lower()} for the following product.
-
-Product name: {request.product_name}
-Category: {category_text}
-Price: {price_text}
-Tone: {request.tone}
-
-Requirements:
-- Keep the content clear and useful.
-- Match the requested tone.
-- Do not invent technical specifications or unsupported claims.
-- Do not mention AI, prompts, or language models.
-- Return only the final content.
-"""
-
-    response = requests.post(
-        "http://localhost:11434/api/generate",
-        json={
-            "model": "qwen3:1.7b",
-            "prompt": prompt,
-            "stream": False,
-            "think": False
-        },
-        timeout=120
-    )
-
-    response.raise_for_status()
-
-    data = response.json()
+    result = agent.run()
 
     return {
         "product_name": request.product_name,
         "content_type": request.content_type,
         "tone": request.tone,
-        "response": data.get("response", "")
+
+        "response": result["response"],
+
+        "model": result["model"],
+        "agent": result["agent"],
+        "workflow": result["workflow"],
+
+        "attempts": result["attempts"],
+        "revision_performed": result["revision_performed"],
+
+        "responsible_ai": result["responsible_ai"],
     }

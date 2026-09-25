@@ -181,7 +181,7 @@ function Dashboard({ products, setPage, pendingReviewCount }) {
           <div className="panel-heading">
             <div>
               <h2>Recent Products</h2>
-              <p>Products currently in your demo workspace.</p>
+              <p><p>Products currently in your workspace.</p></p>
             </div>
             <button className="text-button" onClick={() => setPage("Products")}>
               View all →
@@ -1193,7 +1193,7 @@ export default function App() {
 
           <div className="demo-label">
             <span className="demo-dot" />
-            Demo Workspace
+            Workspace
           </div>
         </header>
 
