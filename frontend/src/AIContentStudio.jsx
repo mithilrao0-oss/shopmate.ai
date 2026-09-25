@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 
 const sampleProducts = [
   { id: 1, name: "Portable Blender", category: "Kitchen", price: 1299 },
@@ -11,50 +11,6 @@ const sampleProducts = [
     price: 1499,
   },
 ];
-
-function createContent(product, contentType, tone) {
-  const name = product.name;
-  const price = product.price ? `₹${product.price}` : "";
-
-  const toneText = {
-    Friendly: "Make everyday life a little easier",
-    Professional: "A practical choice for your everyday needs",
-    Exciting: "Your next favourite find could be here",
-  };
-
-  if (contentType === "Product Caption") {
-    return `${toneText[tone]} with the ${name}! ${
-      price ? `Available at ${price}. ` : ""
-    }Discover this product and see if it fits your needs. #ShopMateAI #ProductFinds`;
-  }
-
-  if (contentType === "Reel Script") {
-    return `Reel Script: ${name}
-
-Scene 1 — Hook:
-"Looking for something useful for your everyday routine?"
-
-Scene 2 — Product Introduction:
-"Meet the ${name}."
-
-Scene 3 — Key Message:
-"${toneText[tone]}."
-
-Scene 4 — Call to Action:
-"Check out the ${name} and explore it on ShopMate.ai."`;
-  }
-
-  return `Product: ${name}
-
-Headline:
-"Discover the ${name}"
-
-Description:
-"${toneText[tone]} with the ${name}."
-
-${price ? `Price: ${price}\n` : ""}Call to Action:
-"Explore this product on ShopMate.ai."`;
-}
 
 export default function AIContentStudio({
   products = sampleProducts,
@@ -71,20 +27,75 @@ export default function AIContentStudio({
   const [tone, setTone] = useState("Friendly");
   const [generatedContent, setGeneratedContent] = useState("");
   const [message, setMessage] = useState("");
+  const [isGenerating, setIsGenerating] = useState(false);
+
+  useEffect(() => {
+    if (availableProducts.length === 0) {
+      setSelectedProductId("");
+      return;
+    }
+
+    const selectedStillExists = availableProducts.some(
+      (product) =>
+        String(product.id ?? product.name) === selectedProductId
+    );
+
+    if (!selectedStillExists) {
+      setSelectedProductId(
+        String(availableProducts[0]?.id ?? availableProducts[0]?.name ?? "")
+      );
+    }
+  }, [availableProducts, selectedProductId]);
 
   const selectedProduct =
     availableProducts.find(
       (product) => String(product.id ?? product.name) === selectedProductId
     ) ?? availableProducts[0];
 
-  function handleGenerate() {
+  async function handleGenerate() {
     if (!selectedProduct) {
       setMessage("Please add a product before generating content.");
       return;
     }
 
-    setGeneratedContent(createContent(selectedProduct, contentType, tone));
-    setMessage("Demo content generated. Review and edit it before use.");
+    setIsGenerating(true);
+    setMessage("");
+    setGeneratedContent("");
+
+    try {
+      const response = await fetch("http://localhost:5000/api/ai/generate", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          product_name: selectedProduct.name,
+          category: selectedProduct.category ?? null,
+          price: selectedProduct.price ?? null,
+          content_type: contentType,
+          tone,
+        }),
+      });
+
+      if (!response.ok) {
+        const errorText = await response.text();
+        throw new Error(
+          `AI request failed (${response.status}): ${errorText}`
+        );
+      }
+
+      const data = await response.json();
+
+      setGeneratedContent(data.response ?? "");
+      setMessage("AI content generated successfully. Review and edit it before use.");
+    } catch (error) {
+      console.error("AI generation error:", error);
+      setMessage(
+        "Could not generate content. Make sure the FastAPI backend and Ollama are running."
+      );
+    } finally {
+      setIsGenerating(false);
+    }
   }
 
   function handleSendToReview() {
@@ -129,15 +140,15 @@ export default function AIContentStudio({
           <p className="eyebrow">CONTENT WORKSPACE</p>
           <h1>AI Content Studio</h1>
           <p className="page-description">
-            Prepare product captions, reel scripts, and descriptions.
+            Generate product captions, reel scripts, and descriptions with AI.
           </p>
         </div>
       </div>
 
       <div className="demo-notice">
-        <strong>Demo mode:</strong> This page currently uses sample content
-        templates. It is not connected to an AI model yet. Review and edit all
-        content before publishing.
+        <strong>AI-assisted mode:</strong> Content is generated using the local
+        Qwen3 model through the ShopMate.ai backend. Review and edit all content
+        before publishing.
       </div>
 
       <div className="content-studio-grid">
@@ -186,8 +197,12 @@ export default function AIContentStudio({
             <option>Exciting</option>
           </select>
 
-          <button className="primary-button" onClick={handleGenerate}>
-            Generate Content
+          <button
+            className="primary-button"
+            onClick={handleGenerate}
+            disabled={isGenerating}
+          >
+            {isGenerating ? "Generating..." : "Generate Content"}
           </button>
         </div>
 
@@ -196,7 +211,7 @@ export default function AIContentStudio({
             <div>
               <h2>Content Preview</h2>
               <p className="panel-description">
-                Review and edit your content below.
+                Review and edit your AI-generated content below.
               </p>
             </div>
 
@@ -212,7 +227,11 @@ export default function AIContentStudio({
           <textarea
             className="content-output"
             aria-label="Generated content"
-            placeholder="Your generated content will appear here..."
+            placeholder={
+              isGenerating
+                ? "Generating AI content..."
+                : "Your AI-generated content will appear here..."
+            }
             value={generatedContent}
             onChange={(event) => setGeneratedContent(event.target.value)}
           />
@@ -228,8 +247,8 @@ export default function AIContentStudio({
           {message && <p className="studio-message">{message}</p>}
 
           <p className="output-note">
-            This is a draft. Check product details and claims before using it
-            in a real promotion.
+            AI-generated content may contain errors. Check product details and
+            claims before using it in a real promotion.
           </p>
         </div>
       </div>
