@@ -1,184 +1,358 @@
 # ShopMate.ai
 
-### AI Agent-Assisted Product Discovery & Auto-Content Platform
+**AI-powered product sourcing, trend insights, content generation, and human review workspace.**
 
-ShopMate.ai is a Semester 5 college project for **Artificial Intelligence of Things (AIOT)**. It is designed to help online sellers organize product information, explore early trend signals, and prepare marketing content with AI assistance.
-
-The project aims to demonstrate practical concepts from Generative AI, Prompt Engineering, and Agentic AI through a simple and understandable web application.
-
-> **Project status:** Frontend prototype with demo functionality. Backend services, real AI model integration, database storage, and publishing are not yet implemented.
+ShopMate.ai is a Semester 5 AIOT project that demonstrates an AI-assisted workflow for discovering products, reviewing product trends, generating promotional content, and keeping a human in the loop before content is used.
 
 ---
 
-## 1. Problem Statement
+## Overview
 
-Online sellers need to find suitable products and prepare promotional content for them. Doing this manually can take time and require multiple tools.
+ShopMate.ai combines:
 
-ShopMate.ai aims to provide a single workspace where sellers can manage product information, view trend insights, and prepare marketing content for review.
+- React + Vite frontend
+- FastAPI backend
+- SQLite database
+- Ollama local AI runtime
+- Qwen3 1.7B open-source language model
 
----
+The main workflow is:
 
-## 2. Project Objectives
+**Product Sourcing → Trend Insights → AI Content → Human Review**
 
-* Organize product information in one workspace.
-* Help filter and shortlist products using relevant criteria.
-* Display early trend signals without claiming to predict virality.
-* Prepare product captions, reel scripts, and descriptions.
-* Provide a user interface for reviewing and editing content.
-* Design a workflow that keeps humans involved before publishing.
-* Demonstrate AIOT concepts through a practical application.
+The project is designed as an AI-assisted system rather than a fully autonomous publishing system.
 
 ---
 
-## 3. Current Features
+## Features
 
-The following features are currently available in the frontend prototype:
+### Product Sourcing
 
-### Dashboard
-
-* Displays project workspace metrics using demonstration data.
-* Provides navigation to the main workspace sections.
-
-### Products
-
-* Displays sample product information.
-* Allows the user to interact with the product workspace.
-* Product changes currently use frontend state and are not permanently stored.
+- View available products
+- Product name and category
+- Product price
+- Supplier information
+- Trend score
+- Product API through FastAPI
 
 ### Trend Insights
 
-* Displays illustrative trend information.
-* Helps demonstrate how products could be explored using trend signals.
-* Does not use verified live trend measurements or predict virality.
+The dashboard presents product trend information to help users identify products that may be useful for further review.
 
 ### AI Content Studio
 
-* Allows the user to select a product.
-* Supports Product Caption, Reel Script, and Product Description content types.
-* Supports Friendly, Professional, and Exciting tones.
-* Generates content using sample templates.
-* Allows the generated text to be edited and copied.
-* Clearly identifies the current demo mode.
+The AI Content Studio generates content for selected products using the local Qwen3 model.
 
-**Important:** The current content generator uses demonstration templates. It is not connected to a real AI model or LLM yet.
+Supported content types:
 
-### Review Queue
+- Product Caption
+- Reel Script
+- Product Description
 
-* A review and approval workflow is planned.
-* Human review is intended to take place before content is published.
+Supported tones:
 
----
+- Friendly
+- Professional
+- Exciting
 
-## 4. Proposed Workflow
+Users can edit the generated content before sending it for review.
 
-The planned system workflow is:
+### Human Review
 
-1. Collect product information.
-2. Filter and shortlist products.
-3. Explore early trend signals.
-4. Generate marketing content.
-5. Preview and edit the generated content.
-6. Review and approve the content.
-7. Prepare approved content for publishing.
-8. Use feedback to improve later content decisions.
+Generated content can be sent to the Review Queue where users can:
 
-The workflow will be implemented gradually as the project develops.
+- Review generated content
+- Edit content before approval
+- Approve content
+- Reject content
+- Store review information in SQLite
+
+This provides a human-in-the-loop workflow for AI-generated content.
 
 ---
 
-## 5. Technology Stack
+## System Architecture
 
-### Current Frontend
-
-* **React** – building the user interface.
-* **Vite** – frontend development and build tooling.
-* **CSS** – styling the workspace.
-
-### Planned Technologies
-
-* **Python** – implementation of agent and supporting logic.
-* **FastAPI** – backend API.
-* **SQLite** – simple database storage.
-* **Open-source LLM** – planned for real content generation, subject to practical model and environment requirements.
-
-The planned technologies may be adjusted if needed to keep the project functional and suitable for a Semester 5 college project.
-
----
-
-## 6. AIOT Concepts
-
-ShopMate.ai is intended to demonstrate concepts from the three AIOT units:
-
-### Unit 1 – Foundations of Generative AI and LLMs
-
-The planned LLM integration will demonstrate text generation and the use of an open model.
-
-### Unit 2 – Prompt Engineering
-
-Structured prompts and templates will guide the generation of product captions, reel scripts, and descriptions.
-
-### Unit 3 – Agentic AI and Autonomous Systems
-
-The planned agent workflow will organize tasks such as product filtering, trend analysis, and content preparation. Human review will remain part of the publishing process.
-
-These are project goals; concepts will be documented as implemented when the corresponding functionality is available.
+```text
+┌──────────────────────────────┐
+│       React Frontend         │
+│          Vite + UI           │
+│        Port 5173             │
+└──────────────┬───────────────┘
+               │
+               │ HTTP API
+               ▼
+┌──────────────────────────────┐
+│       FastAPI Backend        │
+│        Port 5000             │
+└───────────┬─────────┬────────┘
+            │         │
+            │         │
+            ▼         ▼
+     ┌──────────┐  ┌──────────────┐
+     │ SQLite   │  │    Ollama    │
+     │ Database │  │  Port 11434  │
+     └──────────┘  └──────┬───────┘
+                          │
+                          ▼
+                   ┌──────────────┐
+                   │ Qwen3 1.7B   │
+                   │ Local LLM    │
+                   └──────────────┘
+```
 
 ---
 
-## 7. Responsible AI
+## Technology Stack
 
-The project is designed around the following principles:
+### Frontend
 
-* **Transparency:** Clearly distinguish demo data and template-generated content from real AI output.
-* **Accuracy:** Avoid unsupported product claims, fake reviews, and guaranteed-profit claims.
-* **Trend limitations:** Trend signals should not be presented as reliable predictions of virality.
-* **Human control:** Content should be reviewed by a person before publishing.
-* **Privacy:** Protect API keys and any user information introduced during development.
-* **Safety:** Consider avoiding restricted or unsafe product categories where relevant.
+- React
+- Vite
+- JavaScript
+- CSS
 
----
+### Backend
 
-## 8. Limitations
+- Python
+- FastAPI
+- Uvicorn
+- Requests
 
-The current prototype has the following limitations:
+### Database
 
-* Product information includes demonstration data.
-* Product changes are not yet saved permanently.
-* Trend insights are illustrative and are not based on verified live measurements.
-* The content generator uses sample templates rather than a real AI model.
-* The review and approval workflow is not yet implemented.
-* Backend APIs and database integration are not yet available.
-* Automatic Instagram publishing is not implemented.
+- SQLite
 
----
+### AI
 
-## 9. Future Scope
+- Ollama
+- Qwen3 1.7B
+- Local LLM inference
 
-Possible future improvements include:
+### Development Tools
 
-* Implementing a FastAPI backend.
-* Adding SQLite storage for products and content drafts.
-* Connecting an appropriate open-source LLM.
-* Developing product sourcing and filtering logic.
-* Implementing trend-signal calculations using available data.
-* Building a review and approval queue.
-* Improving content generation and preview functionality.
-* Exploring a publishing integration if the required API access and permissions are available.
-* Testing the complete workflow and documenting the results.
+- Git
+- GitHub
+- PowerShell
+- Python virtual environment
+- npm
 
 ---
 
-## 10. Running the Frontend
+## Project Structure
 
-Make sure Node.js and npm are installed.
+```text
+shopmate.ai/
+│
+├── backend/
+│   ├── app/
+│   │   ├── routes/
+│   │   │   ├── ai.py
+│   │   │   ├── products.py
+│   │   │   └── reviews.py
+│   │   │
+│   │   ├── database.py
+│   │   └── main.py
+│   │
+│   ├── requirements.txt
+│   └── venv/
+│
+├── frontend/
+│   ├── src/
+│   │   ├── AIContentStudio.jsx
+│   │   ├── App.jsx
+│   │   ├── App.css
+│   │   ├── index.css
+│   │   └── main.jsx
+│   │
+│   └── package.json
+│
+└── README.md
+```
 
-Open a terminal in the frontend directory:
+---
+
+## API Endpoints
+
+### Health
+
+```text
+GET /api/health
+```
+
+Checks whether the FastAPI backend is running.
+
+### Products
+
+```text
+GET /api/products
+```
+
+Returns product information used by the application.
+
+### Reviews
+
+```text
+GET /api/reviews
+POST /api/reviews
+PATCH /api/reviews/{review_id}
+```
+
+Provides the human review workflow.
+
+### AI Test
+
+```text
+POST /api/ai/test
+```
+
+Tests communication between FastAPI and the local Ollama model.
+
+### AI Content Generation
+
+```text
+POST /api/ai/generate
+```
+
+Generates product content using Qwen3 through Ollama.
+
+Example request:
+
+```json
+{
+  "product_name": "LED Desk Lamp",
+  "category": "Home & Office",
+  "price": 499,
+  "content_type": "Product Caption",
+  "tone": "Friendly"
+}
+```
+
+The backend creates a structured prompt and sends it to the local Qwen3 model.
+
+---
+
+## AI Generation Workflow
+
+```text
+User selects product
+        ↓
+User selects content type
+        ↓
+User selects tone
+        ↓
+React sends request
+        ↓
+FastAPI receives request
+        ↓
+FastAPI creates AI prompt
+        ↓
+Ollama runs Qwen3 1.7B
+        ↓
+Generated content returned
+        ↓
+User reviews/edits content
+        ↓
+Send to Review Queue
+        ↓
+Human approval/rejection
+        ↓
+Review stored in SQLite
+```
+
+---
+
+## Installation
+
+### Prerequisites
+
+Install:
+
+- Python 3.10+
+- Node.js
+- npm
+- Git
+- Ollama
+
+---
+
+## Ollama Setup
+
+Install Ollama and download the Qwen3 model:
+
+```bash
+ollama pull qwen3:1.7b
+```
+
+Check that the model is installed:
+
+```bash
+ollama list
+```
+
+The project uses:
+
+```text
+qwen3:1.7b
+```
+
+Ollama runs locally at:
+
+```text
+http://localhost:11434
+```
+
+---
+
+## Backend Setup
+
+Open PowerShell and navigate to the backend:
+
+```powershell
+cd backend
+```
+
+Create the Python virtual environment:
+
+```powershell
+python -m venv venv
+```
+
+Activate it:
+
+```powershell
+.\venv\Scripts\Activate.ps1
+```
+
+Install dependencies:
+
+```powershell
+python -m pip install -r requirements.txt
+```
+
+Start the FastAPI backend:
+
+```powershell
+python -m uvicorn app.main:app --port 5000
+```
+
+Backend:
+
+```text
+http://localhost:5000
+```
+
+---
+
+## Frontend Setup
+
+Open another terminal and navigate to the frontend:
 
 ```powershell
 cd frontend
 ```
 
-Install the project dependencies:
+Install dependencies:
 
 ```powershell
 npm install
@@ -190,15 +364,146 @@ Start the development server:
 npm run dev
 ```
 
-Open the local address shown in the terminal to view the application.
+Frontend:
+
+```text
+http://localhost:5173
+```
 
 ---
 
-## 11. Academic Project
+## Running the Project
 
-**Project:** ShopMate.ai
-**Subject:** Artificial Intelligence of Things (AIOT)
-**Semester:** 5
-**Project Type:** College academic project
+Run the following components:
 
-The project is being developed as a manageable, demonstrable application. Features and implementation status will be updated in this README as development progresses.
+### 1. Ollama
+
+Make sure Ollama is running and Qwen3 is installed.
+
+### 2. Backend
+
+From the `backend` directory:
+
+```powershell
+.\venv\Scripts\Activate.ps1
+python -m uvicorn app.main:app --port 5000
+```
+
+### 3. Frontend
+
+From the `frontend` directory:
+
+```powershell
+npm run dev
+```
+
+Then open:
+
+```text
+http://localhost:5173
+```
+
+---
+
+## Example Usage
+
+1. Open the ShopMate.ai dashboard.
+2. Navigate to **AI Content Studio**.
+3. Select a product.
+4. Select a content type.
+5. Select a tone.
+6. Click **Generate Content**.
+7. Wait for Qwen3 to generate the content.
+8. Review and edit the generated text.
+9. Click **Send to Review**.
+10. Open the Review Queue.
+11. Review the generated content.
+12. Approve or reject the draft.
+
+---
+
+## Responsible AI
+
+ShopMate.ai keeps a human in the loop when using AI-generated content.
+
+The system includes the following safeguards:
+
+- AI output is treated as draft content.
+- Users can edit generated content.
+- Generated content can be reviewed before approval.
+- Users are warned to verify product details and claims.
+- The AI model runs locally through Ollama in the project setup.
+- The system does not automatically publish AI-generated content to social media.
+
+AI-generated text can contain inaccurate or unsupported information. Users should verify important information before using generated content in real-world promotions.
+
+---
+
+## Project Scope
+
+This project is an academic prototype demonstrating an AI-assisted product workflow.
+
+The implemented system demonstrates:
+
+- Product sourcing workspace
+- Product API
+- Trend-oriented product information
+- Local LLM integration
+- Qwen3 AI content generation
+- Editable AI output
+- Human review workflow
+- SQLite persistence
+- React and FastAPI integration
+
+The current prototype does not include production integrations such as:
+
+- Live supplier marketplaces
+- Automatic social-media publishing
+- Production cloud deployment
+- Large-scale multi-user infrastructure
+
+---
+
+## Demo Information
+
+The project may use demonstration product data and trend information.
+
+Example products include:
+
+- LED Desk Lamp
+- Travel Organizer
+- Portable Mini Fan
+- Portable Blender
+- Mini Bluetooth Speaker
+
+Prices, suppliers, and trend scores shown in the prototype should be treated as demonstration data unless connected to a verified external data source.
+
+---
+
+## Repository
+
+GitHub:
+
+https://github.com/mithilrao0-oss/shopmate.ai.git
+
+---
+
+## Project Status
+
+**Functional Semester 5 AIOT Prototype**
+
+The core ShopMate.ai workflow is implemented:
+
+**Product Data → AI Generation → Human Review → SQLite Storage**
+
+The local Qwen3 model is connected to the FastAPI backend through Ollama, and the generated content is displayed in the React frontend.
+
+---
+
+## Author
+
+**Mithil Rao**
+
+Semester 5 AIOT Project
+
+**ShopMate.ai**
