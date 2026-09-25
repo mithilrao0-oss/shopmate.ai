@@ -50,3 +50,11 @@ content-pipeline/assets/stock_footage/*
 Thumbs.db
 .vscode/
 *.log
+# Python
+backend/venv/
+backend/__pycache__/
+backend/app/__pycache__/
+*.pyc
+
+# SQLite database
+backend/shopmate.db
