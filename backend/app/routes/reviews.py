@@ -1,7 +1,8 @@
 from fastapi import APIRouter, HTTPException
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 from app.database import get_db_connection
+from app.responsible_ai import check_content
 
 
 router = APIRouter(
@@ -13,10 +14,10 @@ router = APIRouter(
 # ---------- Request Models ----------
 
 class ReviewCreate(BaseModel):
-    productName: str
-    contentType: str
-    tone: str
-    content: str
+    productName: str = Field(min_length=1)
+    contentType: str = Field(min_length=1)
+    tone: str = Field(min_length=1)
+    content: str = Field(min_length=1)
 
 
 class ReviewStatusUpdate(BaseModel):
@@ -53,6 +54,20 @@ def get_reviews():
 
 @router.post("")
 def create_review(review: ReviewCreate):
+    # Server-side Responsible AI gate: flagged content cannot enter the
+    # review queue, whatever the frontend does.
+    check = check_content(review.content)
+
+    if not check["passed"]:
+        raise HTTPException(
+            status_code=422,
+            detail=(
+                "Responsible AI check failed: "
+                + ", ".join(check["issues"])
+                + ". Please edit the content and try again."
+            )
+        )
+
     connection = get_db_connection()
 
     cursor = connection.execute(

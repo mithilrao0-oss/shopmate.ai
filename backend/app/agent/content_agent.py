@@ -1,6 +1,14 @@
 import re
 import requests
 
+from app.config import (
+    OLLAMA_MAX_TOKENS,
+    OLLAMA_MODEL,
+    OLLAMA_TIMEOUT,
+    OLLAMA_URL,
+)
+from app.responsible_ai import check_content
+
 
 class ShopMateContentAgent:
     """
@@ -15,8 +23,8 @@ class ShopMateContentAgent:
     6. Return the final content and workflow information.
     """
 
-    OLLAMA_URL = "http://localhost:11434/api/generate"
-    MODEL = "qwen3:1.7b"
+    OLLAMA_URL = OLLAMA_URL
+    MODEL = OLLAMA_MODEL
     MAX_ATTEMPTS = 2
 
     def __init__(
@@ -37,18 +45,33 @@ class ShopMateContentAgent:
         if self.price is None:
             return "Not specified"
 
-        return f"₹{self.price}"
+        return f"\u20b9{self.price}"
 
-    def _build_prompt(self, revision: bool = False) -> str:
+    def _build_prompt(
+        self,
+        previous_draft: str = "",
+        previous_check: dict | None = None,
+    ) -> str:
         revision_instruction = ""
 
-        if revision:
-            revision_instruction = """
-A previous draft triggered a Responsible AI wording check.
+        if previous_draft and previous_check and not previous_check["passed"]:
+            flagged_text = [
+                text
+                for texts in previous_check.get("matches", {}).values()
+                for text in texts
+            ]
 
-Create a revised version that:
-- removes stereotypes or discriminatory wording
-- avoids insults or degrading language
+            revision_instruction = f"""
+A previous draft was flagged by a Responsible AI wording check.
+Reasons: {", ".join(previous_check["issues"])}
+Flagged wording: {", ".join(flagged_text) if flagged_text else "not available"}
+
+Previous draft:
+{previous_draft}
+
+Write a new version that:
+- removes the flagged wording
+- avoids stereotypes, insults, and degrading language
 - avoids unsupported or exaggerated claims
 - remains useful and natural
 - keeps the requested tone
@@ -78,6 +101,17 @@ Requirements:
 {revision_instruction}
 """
 
+    @staticmethod
+    def _strip_thinking(text: str) -> str:
+        """Remove <think> blocks that some Ollama/Qwen3 versions still emit."""
+
+        text = re.sub(r"<think>.*?</think>", "", text, flags=re.DOTALL)
+
+        # A block that was cut off before it closed.
+        text = re.sub(r"<think>.*$", "", text, flags=re.DOTALL)
+
+        return text.strip()
+
     def _generate_with_qwen(self, prompt: str) -> str:
         response = requests.post(
             self.OLLAMA_URL,
@@ -86,85 +120,17 @@ Requirements:
                 "prompt": prompt,
                 "stream": False,
                 "think": False,
+                "keep_alive": "10m",
+                "options": {"num_predict": OLLAMA_MAX_TOKENS},
             },
-            timeout=120,
+            timeout=OLLAMA_TIMEOUT,
         )
 
         response.raise_for_status()
 
         data = response.json()
 
-        return data.get("response", "").strip()
-
-    def _responsible_ai_check(self, content: str) -> dict:
-        """
-        Basic rule-based Responsible AI screening.
-
-        This is a first-level screening mechanism, not a guarantee
-        that content is completely unbiased or safe.
-        """
-
-        fairness_patterns = [
-            r"\bwomen are\b",
-            r"\bmen are\b",
-            r"\bgirls are\b",
-            r"\bboys are\b",
-            r"\bpeople like you\b",
-            r"\bstupid\b",
-            r"\bdumb\b",
-            r"\binferior\b",
-            r"\bsuperior race\b",
-            r"\blazy people\b",
-            r"\bthose people\b",
-        ]
-
-        safety_patterns = [
-            r"\b100% guaranteed\b",
-            r"\bguaranteed results\b",
-            r"\brisk[- ]free\b",
-            r"\bno risk\b",
-            r"\bcures\b",
-            r"\bclinically proven\b",
-        ]
-
-        privacy_patterns = [
-            r"\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}\b",
-            r"\b\d{10}\b",
-        ]
-
-        fairness_issues = [
-            pattern
-            for pattern in fairness_patterns
-            if re.search(pattern, content, re.IGNORECASE)
-        ]
-
-        safety_issues = [
-            pattern
-            for pattern in safety_patterns
-            if re.search(pattern, content, re.IGNORECASE)
-        ]
-
-        privacy_issues = [
-            pattern
-            for pattern in privacy_patterns
-            if re.search(pattern, content, re.IGNORECASE)
-        ]
-
-        issues = []
-
-        if fairness_issues:
-            issues.append("potentially biased or inappropriate wording")
-
-        if safety_issues:
-            issues.append("potentially unsupported or exaggerated claims")
-
-        if privacy_issues:
-            issues.append("possible personal information")
-
-        return {
-            "passed": len(issues) == 0,
-            "issues": issues,
-        }
+        return self._strip_thinking(data.get("response", ""))
 
     def run(self) -> dict:
         """
@@ -177,18 +143,27 @@ Requirements:
         final_check = {
             "passed": False,
             "issues": ["No content generated"],
+            "matches": {},
         }
 
         while attempts < self.MAX_ATTEMPTS:
             attempts += 1
 
             prompt = self._build_prompt(
-                revision=revision_performed
+                previous_draft=final_content if revision_performed else "",
+                previous_check=final_check if revision_performed else None,
             )
 
             final_content = self._generate_with_qwen(prompt)
 
-            final_check = self._responsible_ai_check(final_content)
+            if final_content:
+                final_check = check_content(final_content)
+            else:
+                final_check = {
+                    "passed": False,
+                    "issues": ["No content generated"],
+                    "matches": {},
+                }
 
             if final_check["passed"]:
                 break
