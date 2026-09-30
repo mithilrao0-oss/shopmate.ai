@@ -1,11 +1,10 @@
 import sqlite3
 
-
-DATABASE = "shopmate.db"
+from app.config import DATABASE_PATH
 
 
 def get_db_connection():
-    connection = sqlite3.connect(DATABASE)
+    connection = sqlite3.connect(DATABASE_PATH)
     connection.row_factory = sqlite3.Row
     return connection
 
@@ -29,4 +28,3 @@ def initialize_database():
 
     connection.commit()
     connection.close()
-    

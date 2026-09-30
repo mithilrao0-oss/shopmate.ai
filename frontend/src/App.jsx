@@ -1,45 +1,7 @@
 import AIContentStudio from "./AIContentStudio";
 import { useEffect, useMemo, useState } from "react";
 import "./App.css";
-
-const initialProducts = [
-  {
-    id: 1,
-    name: "Portable Blender",
-    category: "Kitchen",
-    cost: 650,
-    price: 1299,
-    rating: 4.5,
-    status: "Shortlisted",
-  },
-  {
-    id: 2,
-    name: "LED Desk Lamp",
-    category: "Home & Office",
-    cost: 420,
-    price: 899,
-    rating: 4.3,
-    status: "Under Review",
-  },
-  {
-    id: 3,
-    name: "Travel Organizer",
-    category: "Travel",
-    cost: 280,
-    price: 599,
-    rating: 4.6,
-    status: "Shortlisted",
-  },
-  {
-    id: 4,
-    name: "Mini Bluetooth Speaker",
-    category: "Electronics",
-    cost: 800,
-    price: 1499,
-    rating: 4.2,
-    status: "Pending",
-  },
-];
+import { API_BASE, getErrorMessage } from "./config";
 
 const initialTrends = [
   {
@@ -980,7 +942,7 @@ export default function App() {
   useEffect(() => {
     async function loadProducts() {
       try {
-        const response = await fetch("http://localhost:5000/api/products");
+        const response = await fetch(`${API_BASE}/api/products`);
 
         if (!response.ok) {
           throw new Error("Could not load products.");
@@ -1003,9 +965,9 @@ export default function App() {
 
         setProducts(formattedProducts);
         setApiError("");
-      } catch (error) {
+      } catch {
         setApiError(
-          "Cannot connect to the backend. Make sure it is running at http://localhost:5000."
+          `Cannot connect to the backend. Make sure it is running at ${API_BASE}.`
         );
       }
     }
@@ -1016,7 +978,7 @@ export default function App() {
   useEffect(() => {
     async function loadReviews() {
       try {
-        const response = await fetch("http://localhost:5000/api/reviews");
+        const response = await fetch(`${API_BASE}/api/reviews`);
 
         if (!response.ok) {
           throw new Error("Could not load saved drafts.");
@@ -1025,9 +987,9 @@ export default function App() {
         const data = await response.json();
         setReviewItems(data);
         setApiError("");
-      } catch (error) {
+      } catch {
         setApiError(
-          "Cannot connect to the backend. Make sure it is running at http://localhost:5000."
+          `Cannot connect to the backend. Make sure it is running at ${API_BASE}.`
         );
       }
     }
@@ -1043,7 +1005,7 @@ export default function App() {
     try {
       setApiError("");
 
-      const response = await fetch("http://localhost:5000/api/reviews", {
+      const response = await fetch(`${API_BASE}/api/reviews`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(draft),
@@ -1053,7 +1015,7 @@ export default function App() {
 
       if (!response.ok) {
         throw new Error(
-          savedDraft.error || "Could not save draft."
+          getErrorMessage(savedDraft, "Could not save draft.")
         );
       }
 
@@ -1070,7 +1032,7 @@ export default function App() {
       setApiError("");
 
       const response = await fetch(
-        `http://localhost:5000/api/reviews/${id}`,
+        `${API_BASE}/api/reviews/${id}`,
         {
           method: "PATCH",
           headers: { "Content-Type": "application/json" },
@@ -1082,7 +1044,7 @@ export default function App() {
 
       if (!response.ok) {
         throw new Error(
-          updatedDraft.error || "Could not update draft."
+          getErrorMessage(updatedDraft, "Could not update draft.")
         );
       }
 

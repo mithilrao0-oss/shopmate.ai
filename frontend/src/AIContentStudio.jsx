@@ -1,55 +1,10 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
+import { API_BASE, getErrorMessage } from "./config";
 
-const sampleProducts = [
-  { id: 1, name: "Portable Blender", category: "Kitchen", price: 1299 },
-  { id: 2, name: "LED Desk Lamp", category: "Home & Office", price: 899 },
-  { id: 3, name: "Travel Organizer", category: "Travel", price: 599 },
-  {
-    id: 4,
-    name: "Mini Bluetooth Speaker",
-    category: "Electronics",
-    price: 1499,
-  },
-];
+export default function AIContentStudio({ products = [], onSendToReview }) {
+  const availableProducts = Array.isArray(products) ? products : [];
 
-const sensitiveTerms = [
-  "women are",
-  "men are",
-  "girls are",
-  "boys are",
-  "people like you",
-  "stupid",
-  "dumb",
-  "inferior",
-  "superior race",
-  "lazy people",
-  "illegal immigrant",
-  "those people",
-];
-
-function runResponsibleAICheck(content) {
-  const normalizedContent = content.toLowerCase();
-
-  const detectedTerms = sensitiveTerms.filter((term) =>
-    normalizedContent.includes(term)
-  );
-
-  return {
-    hasPotentialBias: detectedTerms.length > 0,
-    detectedTerms,
-  };
-}
-
-export default function AIContentStudio({
-  products = sampleProducts,
-  onSendToReview,
-}) {
-  const availableProducts =
-    Array.isArray(products) && products.length > 0 ? products : sampleProducts;
-
-  const [selectedProductId, setSelectedProductId] = useState(
-    String(availableProducts[0]?.id ?? availableProducts[0]?.name ?? "")
-  );
+  const [selectedProductId, setSelectedProductId] = useState("");
 
   const [contentType, setContentType] = useState("Product Caption");
   const [tone, setTone] = useState("Friendly");
@@ -60,33 +15,59 @@ export default function AIContentStudio({
   // Agent information returned by FastAPI.
   const [agentInfo, setAgentInfo] = useState(null);
 
-  useEffect(() => {
-    if (availableProducts.length === 0) {
-      setSelectedProductId("");
-      return;
-    }
-
-    const selectedStillExists = availableProducts.some(
-      (product) =>
-        String(product.id ?? product.name) === selectedProductId
-    );
-
-    if (!selectedStillExists) {
-      setSelectedProductId(
-        String(availableProducts[0]?.id ?? availableProducts[0]?.name ?? "")
-      );
-    }
-  }, [availableProducts, selectedProductId]);
-
+  // Falls back to the first product when nothing valid is selected, so no
+  // effect is needed to keep the selection in sync with the loaded products.
   const selectedProduct =
     availableProducts.find(
       (product) => String(product.id ?? product.name) === selectedProductId
     ) ?? availableProducts[0];
 
-  const responsibleAIResult = useMemo(
-    () => runResponsibleAICheck(generatedContent),
-    [generatedContent]
+  const effectiveProductId = String(
+    selectedProduct?.id ?? selectedProduct?.name ?? ""
   );
+
+  // Responsible AI result from the backend (single source of truth).
+  // It re-runs whenever the text changes, so edits are checked too.
+  const [responsibleAIResult, setResponsibleAIResult] = useState(null);
+
+  useEffect(() => {
+    if (!generatedContent.trim()) {
+      return undefined;
+    }
+
+    const controller = new AbortController();
+
+    const timer = setTimeout(async () => {
+      try {
+        const response = await fetch(`${API_BASE}/api/ai/check`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ content: generatedContent }),
+          signal: controller.signal,
+        });
+
+        if (response.ok) {
+          setResponsibleAIResult({
+            text: generatedContent,
+            ...(await response.json()),
+          });
+        }
+      } catch {
+        // Ignore aborted or failed checks; the server re-checks on save.
+      }
+    }, 500);
+
+    return () => {
+      clearTimeout(timer);
+      controller.abort();
+    };
+  }, [generatedContent]);
+
+  // Only trust a result that belongs to the text currently in the box.
+  const activeResult =
+    responsibleAIResult?.text === generatedContent ? responsibleAIResult : null;
+  const contentFlagged = activeResult?.passed === false;
+  const canSendToReview = activeResult?.passed === true;
 
   async function handleGenerate() {
     if (!selectedProduct) {
@@ -100,7 +81,7 @@ export default function AIContentStudio({
     setAgentInfo(null);
 
     try {
-      const response = await fetch("http://localhost:5000/api/ai/generate", {
+      const response = await fetch(`${API_BASE}/api/ai/generate`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -114,15 +95,13 @@ export default function AIContentStudio({
         }),
       });
 
-      if (!response.ok) {
-        const errorText = await response.text();
+      const data = await response.json().catch(() => null);
 
+      if (!response.ok) {
         throw new Error(
-          `AI request failed (${response.status}): ${errorText}`
+          getErrorMessage(data, `AI request failed (${response.status}).`)
         );
       }
-
-      const data = await response.json();
 
       setGeneratedContent(data.response ?? "");
 
@@ -143,7 +122,8 @@ export default function AIContentStudio({
       console.error("AI generation error:", error);
 
       setMessage(
-        "Could not generate content. Make sure the FastAPI backend and Ollama are running."
+        error.message ||
+          "Could not generate content. Make sure the FastAPI backend and Ollama are running."
       );
     } finally {
       setIsGenerating(false);
@@ -161,9 +141,11 @@ export default function AIContentStudio({
       return;
     }
 
-    if (responsibleAIResult.hasPotentialBias) {
+    if (!canSendToReview) {
       setMessage(
-        "Responsible AI check found wording that needs human review. Please edit the content before sending it."
+        contentFlagged
+          ? "Responsible AI check found wording that needs human review. Please edit the content before sending it."
+          : "The Responsible AI check has not finished yet. Please wait a moment."
       );
       return;
     }
@@ -175,9 +157,7 @@ export default function AIContentStudio({
       content: generatedContent,
     });
 
-    setMessage(
-      "Draft passed the initial Responsible AI check and was sent to Review Queue."
-    );
+    setMessage("Draft passed the Responsible AI check and was sent to Review Queue.");
   }
 
   async function handleCopy() {
@@ -222,11 +202,17 @@ export default function AIContentStudio({
             Choose a product and customize the content settings.
           </p>
 
+          {availableProducts.length === 0 && (
+            <p className="studio-message">
+              No products loaded yet. Start the backend so products can load.
+            </p>
+          )}
+
           <label htmlFor="content-product">Select Product</label>
 
           <select
             id="content-product"
-            value={selectedProductId}
+            value={effectiveProductId}
             onChange={(event) => setSelectedProductId(event.target.value)}
           >
             {availableProducts.map((product, index) => {
@@ -370,26 +356,28 @@ export default function AIContentStudio({
             </div>
           )}
 
-          {generatedContent && (
+          {generatedContent && activeResult && (
             <div
               className={`fairness-check ${
-                responsibleAIResult.hasPotentialBias
-                  ? "fairness-warning"
-                  : "fairness-safe"
+                contentFlagged ? "fairness-warning" : "fairness-safe"
               }`}
             >
               <strong>Responsible AI Check</strong>
 
               <p>
-                {responsibleAIResult.hasPotentialBias
-                  ? "⚠️ Review recommended. Potentially inappropriate wording was detected."
-                  : "✓ No obvious issues detected. Human review is still required."}
+                {contentFlagged
+                  ? "\u26a0\ufe0f Review required. The check flagged: " +
+                    activeResult.issues.join(", ") +
+                    "."
+                  : "\u2713 No obvious issues detected. Human review is still required."}
               </p>
 
-              {responsibleAIResult.hasPotentialBias && (
+              {contentFlagged && (
                 <p>
-                  Detected wording:{" "}
-                  {responsibleAIResult.detectedTerms.join(", ")}
+                  Flagged wording:{" "}
+                  {Object.values(activeResult.matches ?? {})
+                    .flat()
+                    .join(", ")}
                 </p>
               )}
             </div>
@@ -398,10 +386,7 @@ export default function AIContentStudio({
           <button
             className="primary-button"
             onClick={handleSendToReview}
-            disabled={
-              !generatedContent.trim() ||
-              responsibleAIResult.hasPotentialBias
-            }
+            disabled={!canSendToReview}
           >
             Send to Review
           </button>

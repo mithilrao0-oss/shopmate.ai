@@ -119,9 +119,10 @@ Users can select:
 
 ### Product
 
+- Portable Blender
 - LED Desk Lamp
 - Travel Organizer
-- Portable Mini Fan
+- Mini Bluetooth Speaker
 
 ### Content Tone
 
@@ -300,18 +301,23 @@ Content can be reviewed and approved before being considered ready for use.
 shopmate.ai/
 │
 ├── backend/
-│   └── app/
-│       ├── agent/
-│       │   ├── __init__.py
-│       │   └── content_agent.py
-│       │
-│       ├── routes/
-│       │   ├── ai.py
-│       │   ├── products.py
-│       │   └── reviews.py
-│       │
-│       ├── database.py
-│       └── main.py
+│   ├── app/
+│   │   ├── agent/
+│   │   │   ├── __init__.py
+│   │   │   └── content_agent.py
+│   │   │
+│   │   ├── routes/
+│   │   │   ├── ai.py
+│   │   │   ├── products.py
+│   │   │   └── reviews.py
+│   │   │
+│   │   ├── config.py
+│   │   ├── database.py
+│   │   ├── responsible_ai.py
+│   │   └── main.py
+│   │
+│   ├── .env.example
+│   └── requirements.txt
 │
 ├── frontend/
 │   ├── src/
@@ -344,7 +350,7 @@ Checks whether the backend is running.
 GET /api/products
 ```
 
-Returns product information.
+Returns the demo product list. This is the single source of truth for products; the frontend no longer keeps its own copy.
 
 ## Reviews
 
@@ -356,6 +362,8 @@ PATCH /api/reviews/{review_id}
 
 Used for the human review workflow.
 
+`POST /api/reviews` runs the Responsible AI check on the server and returns `422` if the content is flagged, so flagged content cannot enter the review queue.
+
 ## AI Test
 
 ```text
@@ -363,6 +371,14 @@ POST /api/ai/test
 ```
 
 Tests direct communication with the local Qwen3/Ollama service.
+
+## Responsible AI Check
+
+```text
+POST /api/ai/check
+```
+
+Runs the rule-based Responsible AI screening on any text (for example, text edited after generation). The content agent, this endpoint, and the review queue all use the same check.
 
 ## AI Content Generation
 
@@ -396,13 +412,23 @@ ollama run qwen3:1.7b
 
 ## 2. Start the FastAPI Backend
 
-Open a terminal:
+Open a terminal in the project folder. The first time only, create a virtual environment and install the dependencies:
 
 ```powershell
-cd "C:\Users\om\OneDrive\Desktop\shopmate.ai\backend"
+cd backend
+python -m venv .venv
+.venv\Scripts\activate
+pip install -r requirements.txt
+copy .env.example .env
 ```
 
-Start FastAPI:
+On later runs, you only need to activate the environment again:
+
+```powershell
+cd backend
+```
+
+Start FastAPI (from the `backend` folder):
 
 ```powershell
 uvicorn app.main:app --reload --port 5000
@@ -419,7 +445,7 @@ http://localhost:5000
 Open another terminal:
 
 ```powershell
-cd "C:\Users\om\OneDrive\Desktop\shopmate.ai\frontend"
+cd frontend
 ```
 
 Start Vite:
@@ -433,6 +459,10 @@ Frontend:
 ```text
 http://localhost:5173
 ```
+
+The first time only, install the packages with `npm.cmd install`.
+
+Optional: copy `frontend/.env.example` to `frontend/.env` if the backend is not at `http://localhost:5000`.
 
 > On some Windows PowerShell configurations, `npm` may be blocked by the execution policy. `npm.cmd run dev` can be used instead.
 
@@ -497,7 +527,7 @@ Category:
 Home & Office
 
 Price:
-₹499
+₹899
 
 Content Type:
 Product Caption
@@ -575,6 +605,26 @@ Responsible AI
         ↓
 Human Review
 ```
+
+---
+
+# 🎬 Planned: Reel Video and Instagram Publishing
+
+The next development stage extends the human-in-the-loop workflow:
+
+```text
+Approved reel script
+      ↓
+Voiceover + video rendering (FFmpeg)
+      ↓
+Video preview and final human approval
+      ↓
+Publishing through the official Instagram Graph API
+```
+
+Publishing will only happen for content a human has approved.
+
+The project is developed and tested on a low-power CPU-only PC (no dedicated GPU, about 8 GB RAM), which is why it uses the small Qwen3 1.7B model and template-based video rendering instead of AI video generation.
 
 ---
 

@@ -5,7 +5,7 @@
 *.env
 !.env.example
 
-# ==== Node.js (frontend/backend) ====
+# ==== Node.js (frontend) ====
 node_modules/
 npm-debug.log*
 yarn-debug.log*
@@ -14,47 +14,24 @@ dist/
 build/
 .cache/
 
-# ==== Python (agents/, content-pipeline/) ====
+# ==== Python (backend) ====
 __pycache__/
 *.py[cod]
-*.pyc
 venv/
 .venv/
 env/
 *.egg-info/
 .pytest_cache/
 
-# ==== Java / Maven (services/inventory-service-java) ====
-target/
-*.class
-*.jar
-!.mvn/wrapper/maven-wrapper.jar
-.mvn/
+# ==== Databases ====
+*.db
+*.sqlite3
 
-# ==== C++ (tools/image-processor-cpp) ====
-tools/image-processor-cpp/build/*
-!tools/image-processor-cpp/build/.gitkeep
-*.o
-*.obj
-*.exe
-*.out
-
-# ==== Generated content (don't commit large media) ====
-content-pipeline/assets/output/*
-!content-pipeline/assets/output/.gitkeep
-content-pipeline/assets/stock_footage/*
-!content-pipeline/assets/stock_footage/.gitkeep
+# ==== Generated media (reels, audio, temp renders) ====
+backend/media/
 
 # ==== OS / Editor ====
 .DS_Store
 Thumbs.db
 .vscode/
 *.log
-# Python
-backend/venv/
-backend/__pycache__/
-backend/app/__pycache__/
-*.pyc
-
-# SQLite database
-backend/shopmate.db
