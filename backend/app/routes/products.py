@@ -10,6 +10,10 @@ router = APIRouter(
 # ---------- Sample Product Data ----------
 # Single source of truth for the demo products. The frontend loads these
 # through GET /api/products and no longer keeps its own copy.
+#
+# "highlights" are the only product facts the AI is allowed to talk about.
+# The demo highlights below come straight from the product names. A real
+# seller should replace them with verified facts.
 
 products = [
     {
@@ -21,7 +25,8 @@ products = [
         "rating": 4.5,
         "status": "Shortlisted",
         "supplier": "Demo Supplier",
-        "trendScore": 82
+        "trendScore": 82,
+        "highlights": ["Portable size", "Blends drinks"]
     },
     {
         "id": 2,
@@ -32,7 +37,8 @@ products = [
         "rating": 4.3,
         "status": "Under Review",
         "supplier": "Demo Supplier",
-        "trendScore": 58
+        "trendScore": 58,
+        "highlights": ["LED light", "Made for desks"]
     },
     {
         "id": 3,
@@ -43,7 +49,8 @@ products = [
         "rating": 4.6,
         "status": "Shortlisted",
         "supplier": "Demo Supplier",
-        "trendScore": 69
+        "trendScore": 69,
+        "highlights": ["Keeps travel items organised"]
     },
     {
         "id": 4,
@@ -54,7 +61,8 @@ products = [
         "rating": 4.2,
         "status": "Pending",
         "supplier": "Demo Supplier",
-        "trendScore": 45
+        "trendScore": 45,
+        "highlights": ["Bluetooth connection", "Mini size"]
     }
 ]
 
