@@ -2,463 +2,283 @@
 
 ## Smart AI Product Sourcing & Content Workspace
 
-ShopMate.ai is a Semester 5 AIOT project that uses an open-source Large Language Model (LLM) to help users discover products, understand trends, generate marketing content, and review AI-generated content before use.
+ShopMate.ai is an AI-powered workspace for e-commerce sellers to discover products, analyze trends, and generate marketing content (captions, descriptions, and Instagram reel scripts) with human review at every stage.
 
-The project focuses on a real-world problem faced by product sellers and small businesses: finding suitable products and creating promotional content efficiently while keeping a human involved in the final decision.
+The project showcases:
+- A **human-in-the-loop workflow**: AI drafts content, and a person reviews it before use.
+- **Responsible AI screening** at multiple stages (generation, editing, submission).
+- **Structured reel scripts** (JSON) that are validated before reaching a person.
+- **Local AI inference** using Ollama and the small Qwen3 1.7B model, so no data leaves your machine.
+
+**Status:** Core features complete. Next: video rendering and Instagram publishing (planned).
 
 ---
 
 ## 🎯 Problem Statement
 
-Product sellers often need to:
+Manual content creation for product listings is time-consuming. AI can help draft ideas faster, but AI output needs verification—it often invents product details, misses key facts, or makes unsupported claims.
 
-- Discover potentially useful products
-- Identify products with good trend potential
-- Create captions, reel scripts, and descriptions
-- Review AI-generated marketing content
-- Avoid unsupported, unsafe, biased, or inappropriate content
-
-Doing these tasks manually can take significant time.
-
-ShopMate.ai combines product discovery, trend insights, AI content generation, Responsible AI checks, and human review into one workspace.
+**Solution:** A workspace where AI drafts content, rules reject obvious mistakes, and humans always make the final call before anything goes public.
 
 ---
 
-## 💡 Solution
+## 💡 How It Works
 
-ShopMate.ai provides an integrated workflow:
+### 1. Product Discovery
+Users browse or add products (name, category, price, highlights).
 
-```text
-Product Sourcing
-       ↓
-Trend Insights
-       ↓
-AI Content Studio
-       ↓
-ShopMate Content Agent
-       ↓
-Qwen3 1.7B via Ollama
-       ↓
-Responsible AI Screening
-       ↓
-Human Review
-       ↓
-Approval
-```
+### 2. AI Content Generation
+Pick a product, choose a content type (caption, description, or reel script), and tone. The AI agent generates a draft.
 
-The system does not automatically publish AI-generated content.
+For **reel scripts**, the output is structured JSON: 4 scenes, each with a voiceover (≤20 words) and on-screen text (≤7 words), plus a caption and hashtags. This structure prepares the script for video rendering and Instagram publishing.
 
-A human must review and approve the generated content before it is considered ready for use.
+### 3. Validation & Screening
+- **Reel scripts:** Code checks for stage directions, invented testimonials, unsupported claims, emoji in voiceover, missing product name, and rule violations.
+- **Text content:** Responsible AI screening for biased wording, privacy leaks, and risky claims.
+
+If the first attempt fails, the agent is told why and regenerates once.
+
+### 4. Human Review
+The user edits and refines the draft, then sends it to the Review Queue.
+
+### 5. Review Queue
+Approved drafts are marked for use. Rejected drafts loop back.
 
 ---
 
-# 🤖 AI Agent
+## 🤖 AI Agent
 
-The main AI agent is implemented in:
+**Model:** Qwen3 1.7B (via Ollama)
 
-```text
-backend/app/agent/content_agent.py
-```
-
-The agent is called:
-
-```text
-ShopMate Content Agent
-```
-
-### Agent workflow
-
-The agent performs the following steps:
-
+**Workflow:**
 1. Task analysis
 2. Prompt construction
-3. Qwen3 generation
-4. Responsible AI screening
-5. Revision and regeneration when required
+3. Qwen3 structured JSON generation (for reels) or text generation (for captions)
+4. Validation (reel scripts) or Responsible AI screening (text)
+5. Retry once if flagged, with detailed feedback
 6. Human review
 
-For **Reel Scripts** the agent uses a structured workflow (see "Structured Reel Scripts" below): Qwen3 must answer in JSON, and code validates the script before a person sees it.
-
-The API route connecting the frontend to the agent is:
-
-```text
-backend/app/routes/ai.py
-```
-
-The frontend displays the agent information and workflow inside:
-
-```text
-frontend/src/AIContentStudio.jsx
-```
+**Product Facts:** The AI can only mention facts listed in a product's `highlights`. The demo highlights are minimal; real sellers should replace them with verified product facts (e.g., "waterproof", "battery life 8 hours", "weighs 200g").
 
 ---
 
-# 🧠 Open-Source AI Model
+## ✍️ AI Content Types
 
-ShopMate.ai uses:
+### Product Caption
+A short, punchy description for e-commerce listings. Plain text, single paragraph.
 
-```text
-Model: Qwen3 1.7B
-Runtime: Ollama
-Processing: Local
-```
+### Product Description
+A longer, detailed product description. Plain text.
 
-Ollama runs the model locally and exposes an API used by the FastAPI backend.
+### Reel Script
+A structured 4-scene Instagram Reel script (JSON):
+- **Scene 1 - Hook:** Attention-grabbing opening (≤20 words).
+- **Scene 2 - Product:** Introduce the product by its exact name (≤20 words).
+- **Scene 3 - Benefit:** One key benefit (≤20 words).
+- **Scene 4 - Call to action:** Invite viewers to check it out (≤20 words).
+- **Instagram caption:** 1-2 sentences.
+- **Hashtags:** 3 to 5 relevant tags.
 
-The application sends product and content requirements to the ShopMate Content Agent, which constructs a task-specific prompt before calling Qwen3.
-
----
-
-# ✍️ AI Content Generation
-
-The AI Content Studio supports:
-
-- Product Captions
-- Reel Scripts
-- Product Descriptions
-
-Users can select:
-
-### Product
-
-- Portable Blender
-- LED Desk Lamp
-- Travel Organizer
-- Mini Bluetooth Speaker
-
-### Content Tone
-
-- Friendly
-- Professional
-- Exciting
-
-The generated content is displayed in the Content Preview area where the user can review and edit it.
-
-## Structured Reel Scripts
-
-A reel script is not free text. The model returns JSON with **4 scenes** (hook, product, benefit, call to action), an Instagram caption, and 3 to 5 hashtags. Each scene has a plain-text `voiceover` (at most 20 words) and short `on_screen_text` (at most 7 words). A full script is about 30 seconds or less when spoken.
-
-```json
-{
-  "scenes": [
-    { "voiceover": "Tired of a dim, messy desk?", "on_screen_text": "Fix your desk" }
-  ],
-  "caption": "...",
-  "hashtags": ["#LEDLamp", "#DeskSetup", "#HomeOffice"]
-}
-```
-
-This structure is what the next stages (voiceover, video rendering, Instagram publishing) will consume.
-
-Code checks in `backend/app/agent/reel_script.py` reject a script that contains:
-
-- stage directions, brackets, markdown or emoji in the spoken text
-- invented customer opinions, testimonials, quotes or ratings
-- numbers that were not provided (only the product price is allowed)
-- unsupported claims such as discounts, guarantees or specifications
-- a missing product name, the wrong number of scenes, or lines that are too long
-- anything flagged by the shared Responsible AI check
-
-If the first attempt fails, the agent tells the model exactly why and retries once. The check runs again on the server when a script is sent to the Review Queue.
-
-The AI may only talk about the facts listed in a product's `highlights`. The demo highlights are taken from the product names; a real seller should replace them with verified product facts.
-
-These rules lower the chance of invented content but do not remove it. Human review is still required.
+The script validates and rejects:
+- Stage directions, brackets, markdown, or emoji in voiceover
+- Invented customer opinions, testimonials, quotes, or fake ratings
+- Numbers not provided (only the product price is allowed)
+- Unsupported claims (discounts, guarantees, specifications, superlatives)
+- Missing product name or violated line lengths
+- Biased wording, privacy risks, or risky claims (from Responsible AI check)
 
 ---
 
-# 🛡 Responsible AI
+## 🛡️ Responsible AI
 
-Responsible AI is an important part of the ShopMate.ai workflow.
+Every draft is screened for:
 
-### 🔒 Privacy
+- **Privacy:** No email addresses, phone numbers, or personal info.
+- **Fairness:** No stereotypes, insults, or discriminatory language.
+- **Safety:** No unsupported medical, financial, or performance claims ("guaranteed", "cures", "risk-free").
 
-AI generation uses the locally running Ollama/Qwen3 model.
+For reel scripts, this screening also validates structure and the specific content rules above.
 
-The system includes basic screening for possible personal information such as email addresses and phone numbers.
+Screening happens:
+1. When the content is generated
+2. When the user edits it (live, debounced)
+3. When the draft is submitted to the Review Queue (server-side gate)
 
-### 👁 Transparency
-
-The interface clearly displays:
-
-- AI model
-- Agent name
-- Content type
-- Tone
-- Number of generation attempts
-- Whether revision was performed
-- Agent workflow
-
-### 🛡 Safety
-
-The agent prompt instructs the model to avoid:
-
-- Unsupported claims
-- Exaggerated guarantees
-- Medical claims
-- Financial claims
-- Unsafe claims
-- Invented product specifications
-
-Generated content remains editable and requires human review.
-
-### ⚖ Fairness
-
-Generated content is screened for potentially inappropriate or discriminatory wording.
-
-The screening includes checks for examples of:
-
-- Stereotyping
-- Insults
-- Degrading language
-- Discriminatory wording
-
-The Responsible AI screening is a first-level automated check and is not a guarantee that generated content is completely safe or unbiased.
+A failed check blocks submission until the user fixes the flagged wording.
 
 ---
 
-# 👤 Human-in-the-Loop
+## 👤 Human-in-the-Loop
 
-ShopMate.ai follows a human-in-the-loop approach.
+AI is a **draft tool**, not a publisher. Every step is:
+1. **Generate:** AI drafts content.
+2. **Screen:** Rules flag obvious mistakes.
+3. **Edit:** User reviews and refines.
+4. **Submit:** User sends to Review Queue.
+5. **Approve:** User marks it ready for use or rejects it.
 
-AI-generated content is **not automatically published**.
-
-The workflow is:
-
-```text
-AI Generation
-     ↓
-Responsible AI Check
-     ↓
-Content Preview
-     ↓
-Send to Review
-     ↓
-Human Review
-     ↓
-Approve / Reject
-```
-
-The Review Queue allows the user to review the generated content and approve it before further use.
-
-This helps keep the final decision with a human rather than the AI system.
+The workflow ensures that AI output never goes public without a person reading it.
 
 ---
 
-# 🖥️ Application Modules
+## 🏗️ Technology Stack
 
-## Dashboard
+### Frontend
+- **React 18** (Vite)
+- **CSS3** (no frameworks, design tokens)
+- Responsive UI for desktop and mobile
 
-Provides an overview of the workspace including:
+### Backend
+- **FastAPI** (Python)
+- **SQLite** (products, reviews, highlights)
+- **Ollama** (local Qwen3 1.7B inference)
 
-- Products discovered
-- Shortlisted products
-- Generated content
-- Pending reviews
+### Database
+- **SQLite** (`shopmate.db`)
+  - `products`: name, category, cost, price, rating, status, supplier, highlights, image_path
+  - `reviews`: productName, contentType, tone, content, status, payload (for reel scripts)
 
-## Products
-
-Displays product information such as:
-
-- Product name
-- Category
-- Price
-- Supplier
-- Trend score
-
-## Trend Insights
-
-Provides trend-oriented information to help identify potentially useful products.
-
-## AI Content Studio
-
-The main AI generation interface.
-
-Users can:
-
-- Select a product
-- Select content type
-- Select tone
-- Generate content
-- View the AI agent workflow
-- Inspect Responsible AI results
-- Edit generated content (reel scripts are edited scene by scene)
-- Send content for human review
-
-## Review Queue
-
-Provides a human review stage for AI-generated content.
-
-Content can be reviewed and approved before being considered ready for use.
+### AI & NLP
+- **Ollama** (local inference engine)
+- **Qwen3 1.7B** (LLM, lightweight for CPU-only machines)
+- **Rule-based validation** (no external APIs)
 
 ---
 
-# 🏗️ Technology Stack
-
-## Frontend
-
-- React
-- Vite
-- JavaScript
-- CSS
-
-## Backend
-
-- Python
-- FastAPI
-- Pydantic
-- Requests
-
-## Database
-
-- SQLite
-
-## AI
-
-- Qwen3 1.7B
-- Ollama
-
-## Development Tools
-
-- VS Code
-- Git
-- GitHub
-- Node.js
-- Python
-
----
-
-# 📁 Project Structure
+## 📁 Project Structure
 
 ```text
 shopmate.ai/
-│
 ├── backend/
 │   ├── app/
 │   │   ├── agent/
-│   │   │   ├── __init__.py
-│   │   │   ├── content_agent.py
-│   │   │   └── reel_script.py
-│   │   │
+│   │   │   ├── content_agent.py       # Main AI workflow
+│   │   │   └── reel_script.py         # Reel validation & rendering
 │   │   ├── routes/
-│   │   │   ├── ai.py
-│   │   │   ├── products.py
-│   │   │   └── reviews.py
-│   │   │
-│   │   ├── config.py
-│   │   ├── database.py
-│   │   ├── responsible_ai.py
-│   │   └── main.py
-│   │
+│   │   │   ├── ai.py                  # /api/ai/* endpoints
+│   │   │   ├── products.py            # /api/products/* endpoints
+│   │   │   └── reviews.py             # /api/reviews/* endpoints
+│   │   ├── config.py                  # Config from .env
+│   │   ├── database.py                # SQLite setup
+│   │   ├── responsible_ai.py          # Screening rules
+│   │   └── main.py                    # FastAPI app
 │   ├── tests/
-│   ├── .env.example
-│   ├── pytest.ini
-│   ├── requirements.txt
-│   └── requirements-dev.txt
+│   │   ├── test_reel_script.py        # Reel validation tests
+│   │   └── test_api.py                # API tests
+│   ├── media/                         # Product images (generated)
+│   ├── .env.example                   # Config template
+│   ├── pytest.ini                     # Test config
+│   ├── requirements.txt               # Python deps
+│   ├── requirements-dev.txt           # Dev deps (pytest)
+│   └── venv/                          # Virtual environment (gitignored)
 │
 ├── frontend/
 │   ├── src/
-│   │   ├── AIContentStudio.jsx
-│   │   ├── App.jsx
-│   │   ├── ReelEditor.jsx
-│   │   └── ...
-│   │
+│   │   ├── AIContentStudio.jsx        # Main content editor
+│   │   ├── App.jsx                    # Router & layout
+│   │   ├── ReelEditor.jsx             # Scene-by-scene reel editor
+│   │   ├── ReelEditor.css             # Reel editor styles
+│   │   ├── config.js                  # API config
+│   │   ├── App.css                    # Global styles
+│   │   └── ...other components
+│   ├── .env.example                   # API URL override (optional)
 │   ├── package.json
-│   └── ...
+│   ├── vite.config.js
+│   └── index.html
 │
+├── .gitignore
 ├── README.md
 └── ...
 ```
 
 ---
 
-# 🔌 API Endpoints
+## 🔌 API Endpoints
 
-## Health Check
-
-```text
+### Health
+```
 GET /api/health
 ```
+Confirms the backend is running.
 
-Checks whether the backend is running.
-
-## Products
-
-```text
-GET /api/products
+### Products
 ```
+GET /api/products
+GET /api/products/{id}
+POST /api/products
+POST /api/products/{id}/image
+DELETE /api/products/{id}/image
+```
+- `GET /api/products` returns all products (seeds demo data on first call).
+- `POST /api/products` creates a new product.
+- `POST /api/products/{id}/image` uploads a product image (JPEG, PNG, WebP, ≤5MB).
+- `DELETE /api/products/{id}/image` removes a product's image.
 
-Returns the demo product list. This is the single source of truth for products; the frontend no longer keeps its own copy.
-
-## Reviews
-
-```text
+### Reviews
+```
 GET /api/reviews
 POST /api/reviews
-PATCH /api/reviews/{review_id}
+PATCH /api/reviews/{id}
+```
+- `GET /api/reviews` lists all drafts (most recent first).
+- `POST /api/reviews` validates and stores a draft (returns 422 if flagged).
+- `PATCH /api/reviews/{id}` updates the status (Pending, Approved, Rejected).
+
+For reel scripts, the POST body includes:
+```json
+{
+  "productName": "LED Desk Lamp",
+  "contentType": "Reel Script",
+  "tone": "Friendly",
+  "payload": { "scenes": [...], "caption": "...", "hashtags": [...] },
+  "price": 899
+}
 ```
 
-Used for the human review workflow.
-
-`POST /api/reviews` runs the checks on the server and returns `422` if the content is flagged, so flagged content cannot enter the review queue. Reel scripts are sent with a structured `payload`, which is stored in the database and returned by `GET /api/reviews`.
-
-## AI Test
-
-```text
+### AI Endpoints
+```
+POST /api/ai/generate
+POST /api/ai/check
+POST /api/ai/check-reel
 POST /api/ai/test
 ```
+- `POST /api/ai/generate` runs the content agent (text or reel).
+  - Request: `{ product_name, category, price, content_type, tone, highlights }`
+  - Response: `{ response, structured (for reels), estimated_seconds, model, agent, workflow, attempts, revision_performed, responsible_ai }`
+  
+- `POST /api/ai/check` screens plain text (used when editing).
+  - Request: `{ content }`
+  - Response: `{ passed, issues, matches, estimated_seconds (for reels) }`
 
-Tests direct communication with the local Qwen3/Ollama service.
+- `POST /api/ai/check-reel` validates a structured reel script.
+  - Request: `{ product_name, price, payload }`
+  - Response: `{ passed, issues, matches, estimated_seconds, text }`
 
-## Responsible AI Check
-
-```text
-POST /api/ai/check
-```
-
-Runs the rule-based Responsible AI screening on any text (for example, text edited after generation). The content agent, this endpoint, and the review queue all use the same check.
-
-```text
-POST /api/ai/check-reel
-```
-
-Validates a structured reel script (`product_name`, `price`, `payload`) and returns the issues found, the flagged wording, an estimated spoken length, and the plain-text version of the script.
-
-## AI Content Generation
-
-```text
-POST /api/ai/generate
-```
-
-Runs the ShopMate Content Agent.
-
-The response includes:
-
-- Generated content
-- Structured reel script (`structured`, for reel scripts only)
-- Estimated spoken length
-- Model
-- Agent
-- Workflow
-- Generation attempts
-- Revision status
-- Responsible AI result
+- `POST /api/ai/test` tests direct communication with Ollama.
 
 ---
 
-# ⚙️ Running the Project
+## ⚙️ Running the Project
 
-## 1. Start Ollama
+### Prerequisites
+- **Python 3.13+**
+- **Node.js 18+** (for npm)
+- **Ollama** with Qwen3 1.7B model installed
+  ```powershell
+  ollama pull qwen3:1.7b
+  ```
 
-Make sure Ollama is installed and the Qwen3 model is available.
+### 1. Start Ollama
 
 ```powershell
 ollama run qwen3:1.7b
 ```
 
-## 2. Start the FastAPI Backend
+Leave this window open. Ollama listens on `http://localhost:11434`.
 
-Open a terminal in the project folder. The first time only, create a virtual environment and install the dependencies:
+### 2. Start the FastAPI Backend
+
+First time only, create and set up the virtual environment:
 
 ```powershell
 cd backend
@@ -467,236 +287,165 @@ venv\Scripts\python.exe -m pip install -r requirements.txt
 copy .env.example .env
 ```
 
-Start FastAPI (from the `backend` folder). This calls the virtual environment's Python directly, so no activation is needed:
+Start the server (no activation needed):
 
 ```powershell
 venv\Scripts\python.exe -m uvicorn app.main:app --reload --port 5000
 ```
 
-> PowerShell may block `venv\Scripts\activate` on some PCs. If you prefer activating the environment, run `Set-ExecutionPolicy -Scope Process -ExecutionPolicy RemoteSigned` first.
+Backend runs at `http://localhost:5000`.
 
-To run the backend tests (they use a temporary database and a fake Ollama, so Ollama does not need to be running):
-
+To run tests:
 ```powershell
 venv\Scripts\python.exe -m pip install -r requirements-dev.txt
 venv\Scripts\python.exe -m pytest
 ```
 
-Backend:
-
-```text
-http://localhost:5000
-```
-
-## 3. Start the Frontend
+### 3. Start the Frontend
 
 Open another terminal:
 
 ```powershell
 cd frontend
-```
-
-Start Vite:
-
-```powershell
+npm.cmd install
 npm.cmd run dev
 ```
 
-Frontend:
+Frontend runs at `http://localhost:5173`.
 
-```text
-http://localhost:5173
-```
-
-The first time only, install the packages with `npm.cmd install`.
-
-Optional: copy `frontend/.env.example` to `frontend/.env` if the backend is not at `http://localhost:5000`.
-
-> On some Windows PowerShell configurations, `npm` may be blocked by the execution policy. `npm.cmd run dev` can be used instead.
+Optional: If the backend is not at `http://localhost:5000`, copy `.env.example` to `.env` and set `VITE_API_URL`.
 
 ---
 
-# 🔄 Complete AI Workflow
+## 🧪 Example Workflow
 
-```text
-                    ┌──────────────────┐
-                    │ Select Product   │
-                    └────────┬─────────┘
-                             ↓
-                    ┌──────────────────┐
-                    │ Select Content   │
-                    │ Type + Tone      │
-                    └────────┬─────────┘
-                             ↓
-                    ┌──────────────────┐
-                    │ ShopMate Content │
-                    │ Agent            │
-                    └────────┬─────────┘
-                             ↓
-                    ┌──────────────────┐
-                    │ Prompt           │
-                    │ Construction     │
-                    └────────┬─────────┘
-                             ↓
-                    ┌──────────────────┐
-                    │ Qwen3 1.7B       │
-                    │ via Ollama       │
-                    └────────┬─────────┘
-                             ↓
-                    ┌──────────────────┐
-                    │ Responsible AI   │
-                    │ Screening        │
-                    └────────┬─────────┘
-                             ↓
-                    ┌──────────────────┐
-                    │ Content Preview  │
-                    └────────┬─────────┘
-                             ↓
-                    ┌──────────────────┐
-                    │ Human Review     │
-                    └────────┬─────────┘
-                             ↓
-                    ┌──────────────────┐
-                    │ Approval         │
-                    └──────────────────┘
-```
+1. **Open the app** at `http://localhost:5173`.
+2. **Go to AI Content**.
+3. **Select "LED Desk Lamp"**, set Content Type to **Reel Script**, Tone to **Friendly**.
+4. **Click Generate Content**.
+   - Ollama runs on your CPU (expect 5–10 minutes on a Pentium).
+   - The reel script appears as 4 editable scenes.
+5. **Check the Responsible AI** box below the script.
+   - If ✓ "No obvious issues", proceed to step 6.
+   - If ⚠️ "Review required", the check lists what failed. Edit the scenes to fix it.
+6. **Click Send to Review** to save the draft to the Review Queue.
+7. **Go to Review Queue**.
+   - The draft appears as a "Pending" item.
+   - Click **Approve** or **Reject**.
 
 ---
 
-# 🧪 Example
+## 📊 Current Features
 
-### Input
-
-```text
-Product:
-LED Desk Lamp
-
-Category:
-Home & Office
-
-Price:
-₹899
-
-Content Type:
-Product Caption
-
-Tone:
-Friendly
-```
-
-### AI Output
-
-The ShopMate Content Agent generates a product caption using Qwen3.
-
-The generated result is then screened by the Responsible AI layer and displayed for human review.
-
-For a **Reel Script**, the result is a 4-scene structured script with voiceover lines, on-screen text, a caption and hashtags, edited scene by scene before it goes to the Review Queue.
-
-The user can edit the content and send it to the Review Queue.
+✅ Product browsing and dashboard  
+✅ Trend Insights (sample data)  
+✅ AI text content generation (captions, descriptions)  
+✅ **Structured reel script generation** (Step 2)  
+✅ **Reel validation & rule-based screening** (Step 2)  
+✅ **Scene-by-scene reel editor** (Step 2)  
+✅ **Product database with image upload** (Step 2.5)  
+✅ Human review workflow  
+✅ Responsible AI screening at multiple stages  
+✅ Backend tests (26 passing)  
 
 ---
 
-# ⚠️ AI Limitations
+## 🎬 Planned: Video Rendering & Instagram Publishing
 
-AI-generated content may contain:
+Next steps (not yet implemented):
 
-- Incorrect product claims
-- Unsupported specifications
-- Exaggerated marketing language
-- Inappropriate wording
-- Other generation errors
+### Step 3: Video Renderer
+- Read a reel script (structured JSON).
+- Use product image + voiceover text to render a 720×1280 or 1080×1920 video.
+- **Tools:** FFmpeg, text-to-speech (Piper or edge-tts), MoviePy.
+- Output: MP4 file ready for preview or upload.
 
-Therefore:
+### Step 4: Instagram Publishing Agent
+- Once a video is approved, an agent posts it via the **Instagram Graph API**.
+- Requires: Meta developer account, Business/Creator Instagram account, app approval.
+- Stores the posted video's IG link and status in the database.
 
-```text
-AI output ≠ automatically trusted output
-```
-
-Users should verify product details and claims before using generated content in real promotional material.
-
-The Responsible AI checks are designed as a first-level safeguard and do not guarantee perfect safety, fairness, or factual accuracy.
+These steps are designed to extend the human-in-the-loop model: the video is still reviewed before posting.
 
 ---
 
-# 🔐 Privacy
+## ⚠️ AI Limitations
 
-ShopMate.ai uses a locally running Ollama/Qwen3 model for AI generation.
+This project uses a **small, lightweight model (Qwen3 1.7B)** for local inference on CPU-only machines. This means:
 
-This project does not require sending product-generation prompts to a cloud-based AI API for the demonstrated workflow.
+- **Hallucination:** The model may invent product features, customer reviews, or specifications not mentioned in highlights.
+- **Errors:** Grammar, capitalization, and tone inconsistencies are common.
+- **Brevity:** Long, detailed content is difficult.
+- **Specificity:** The model struggles with very niche products or unusual requests.
 
-Users should still avoid entering unnecessary personal or confidential information into the application.
-
----
-
-# 🎓 Academic Project
-
-**Project:** ShopMate.ai  
-**Semester:** 5  
-**Project Type:** AIOT / Artificial Intelligence Application  
-**LLM:** Qwen3 1.7B  
-**Open-Source AI Runtime:** Ollama
-
-The project demonstrates:
-
-```text
-Real-world Problem
-        ↓
-Prompt Engineering
-        ↓
-Open-Source LLM
-        ↓
-AI Agent / Workflow
-        ↓
-AI Output
-        ↓
-User-Friendly Interface
-        ↓
-Responsible AI
-        ↓
-Human Review
-```
+**Mitigation:** The validation rules and Responsible AI screening catch some mistakes (invented testimonials, unsupported claims, privacy risks). However, **human review is always required**. Do not rely on the AI alone.
 
 ---
 
-# 🎬 Planned: Reel Video and Instagram Publishing
+## 🔐 Privacy & Security
 
-The next development stage extends the human-in-the-loop workflow:
-
-```text
-Approved structured reel script  (done)
-      ↓
-Voiceover + video rendering (FFmpeg)
-      ↓
-Video preview and final human approval
-      ↓
-Publishing through the official Instagram Graph API
-```
-
-Publishing will only happen for content a human has approved.
-
-The project is developed and tested on a low-power CPU-only PC (no dedicated GPU, about 8 GB RAM), which is why it uses the small Qwen3 1.7B model and template-based video rendering instead of AI video generation.
+- **Data:** All inference happens locally via Ollama. No data is sent to external APIs or cloud services.
+- **Credentials:** API keys and tokens (when added for Instagram) are stored in `.env` only, never committed to git.
+- **Images:** Product images are stored in `backend/media/`, which is gitignored.
 
 ---
 
-# 🚀 Future Improvements
+## 🧑‍💼 Workflow Best Practices
 
-Possible future improvements include:
-
-- More product sources
-- Automated trend-data collection
-- Better product ranking
-- More advanced Responsible AI classifiers
-- Multilingual content generation
-- Persistent user accounts
-- Additional AI agents
-- Social media platform integrations
-- Automated content scheduling
-- More advanced hallucination detection
+1. **Product Highlights:** Keep highlights accurate and concise. AI can only work with the facts you provide.
+2. **Tone:** Choose a tone that matches your brand.
+3. **Content Type:** Captions are quick; reels take longer but generate a complete social media script.
+4. **Review Every Draft:** Even if the check passes, read the output before using it.
+5. **Edit Fearlessly:** If the AI missed something, edit and re-check before sending to the queue.
+6. **Approve Thoughtfully:** Only approve drafts you'd actually post.
 
 ---
 
-## 📌 Project Principle
+## 🎓 Academic Project
 
-> **AI assists the user; the human makes the final decision.**
+This project was built for a semester coursework on AI and software engineering. It demonstrates:
 
-ShopMate.ai is designed to make product research and content creation faster while keeping transparency, Responsible AI, and human review at the center of the workflow.
+- Local AI inference (no cloud APIs).
+- Rule-based validation and screening.
+- Human-in-the-loop design.
+- A real full-stack web app (React + FastAPI + SQLite).
+- Structured AI outputs (JSON reel scripts) that can be consumed by downstream tools.
+
+---
+
+## 📝 License
+
+This project is provided as-is for educational purposes.
+
+---
+
+## 🚀 Next Developer Tasks
+
+If continuing this project:
+
+1. **Implement video rendering** (Step 3):
+   - Text-to-speech for voiceovers.
+   - Image composition with captions and effects.
+   - FFmpeg command orchestration.
+   - Output: MP4 preview.
+
+2. **Implement Instagram publishing** (Step 4):
+   - OAuth flow for Instagram Business Account.
+   - Reel upload via Graph API.
+   - Status tracking in database.
+
+3. **Improve the AI model:**
+   - Try Qwen3 7B or another slightly larger model if hardware allows.
+   - Fine-tune the prompt for better product fact recognition.
+   - Expand the validation rules based on real-world failures.
+
+4. **Polish the UI:**
+   - Add a proper product management page (create, edit, delete, upload images).
+   - Add a video preview player.
+   - Add bulk content generation.
+
+5. **Tests:** Expand test coverage for the frontend.
+
+---
+
+**Questions?** See the README for setup details, or check the code comments in `backend/app/agent/reel_script.py` and `backend/app/agent/content_agent.py` for the AI logic.
