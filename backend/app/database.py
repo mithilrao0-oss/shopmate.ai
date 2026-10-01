@@ -12,6 +12,26 @@ def get_db_connection():
 def initialize_database():
     connection = get_db_connection()
 
+    # Products table: store products with their metadata and image path.
+    connection.execute(
+        """
+        CREATE TABLE IF NOT EXISTS products (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            name TEXT NOT NULL UNIQUE,
+            category TEXT,
+            cost REAL,
+            price REAL,
+            rating REAL,
+            status TEXT,
+            supplier TEXT,
+            highlights TEXT,
+            image_path TEXT,
+            createdAt TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+        )
+        """
+    )
+
+    # Reviews table: AI-generated drafts awaiting human review.
     connection.execute(
         """
         CREATE TABLE IF NOT EXISTS reviews (
