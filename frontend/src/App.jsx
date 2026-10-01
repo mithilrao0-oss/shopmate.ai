@@ -143,7 +143,7 @@ function Dashboard({ products, setPage, pendingReviewCount }) {
           <div className="panel-heading">
             <div>
               <h2>Recent Products</h2>
-              <p><p>Products currently in your workspace.</p></p>
+              <p>Products currently in your workspace.</p>
             </div>
             <button className="text-button" onClick={() => setPage("Products")}>
               View all →

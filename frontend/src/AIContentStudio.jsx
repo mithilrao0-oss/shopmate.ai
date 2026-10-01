@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { API_BASE, getErrorMessage } from "./config";
+import ReelEditor from "./ReelEditor";
 
 export default function AIContentStudio({ products = [], onSendToReview }) {
   const availableProducts = Array.isArray(products) ? products : [];
@@ -9,6 +10,10 @@ export default function AIContentStudio({ products = [], onSendToReview }) {
   const [contentType, setContentType] = useState("Product Caption");
   const [tone, setTone] = useState("Friendly");
   const [generatedContent, setGeneratedContent] = useState("");
+
+  // Structured reel script (scenes, caption, hashtags). Null for plain text.
+  const [reelPayload, setReelPayload] = useState(null);
+  const [generationId, setGenerationId] = useState(0);
   const [message, setMessage] = useState("");
   const [isGenerating, setIsGenerating] = useState(false);
 
@@ -26,12 +31,22 @@ export default function AIContentStudio({ products = [], onSendToReview }) {
     selectedProduct?.id ?? selectedProduct?.name ?? ""
   );
 
-  // Responsible AI result from the backend (single source of truth).
-  // It re-runs whenever the text changes, so edits are checked too.
+  // Responsible AI / script check from the backend (single source of truth).
+  // It re-runs whenever the content or the selected product changes, so
+  // edits are checked too.
   const [responsibleAIResult, setResponsibleAIResult] = useState(null);
 
+  const productName = selectedProduct?.name ?? "";
+  const productPrice = selectedProduct?.price ?? null;
+
+  const contentBody = reelPayload
+    ? JSON.stringify(reelPayload)
+    : generatedContent;
+  const hasContent = Boolean(contentBody.trim());
+  const contentKey = `${productName}|${productPrice}|${contentBody}`;
+
   useEffect(() => {
-    if (!generatedContent.trim()) {
+    if (!hasContent) {
       return undefined;
     }
 
@@ -39,16 +54,29 @@ export default function AIContentStudio({ products = [], onSendToReview }) {
 
     const timer = setTimeout(async () => {
       try {
-        const response = await fetch(`${API_BASE}/api/ai/check`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ content: generatedContent }),
-          signal: controller.signal,
-        });
+        const isReel = Boolean(reelPayload);
+
+        const response = await fetch(
+          `${API_BASE}/api/ai/${isReel ? "check-reel" : "check"}`,
+          {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(
+              isReel
+                ? {
+                    product_name: productName,
+                    price: productPrice,
+                    payload: reelPayload,
+                  }
+                : { content: generatedContent }
+            ),
+            signal: controller.signal,
+          }
+        );
 
         if (response.ok) {
           setResponsibleAIResult({
-            text: generatedContent,
+            key: contentKey,
             ...(await response.json()),
           });
         }
@@ -61,13 +89,22 @@ export default function AIContentStudio({ products = [], onSendToReview }) {
       clearTimeout(timer);
       controller.abort();
     };
-  }, [generatedContent]);
+  }, [
+    hasContent,
+    contentKey,
+    reelPayload,
+    generatedContent,
+    productName,
+    productPrice,
+  ]);
 
-  // Only trust a result that belongs to the text currently in the box.
+  // Only trust a result that belongs to the content currently shown.
   const activeResult =
-    responsibleAIResult?.text === generatedContent ? responsibleAIResult : null;
+    responsibleAIResult?.key === contentKey ? responsibleAIResult : null;
   const contentFlagged = activeResult?.passed === false;
   const canSendToReview = activeResult?.passed === true;
+  const flaggedWording = Object.values(activeResult?.matches ?? {}).flat();
+  const copyText = reelPayload ? activeResult?.text ?? "" : generatedContent;
 
   async function handleGenerate() {
     if (!selectedProduct) {
@@ -78,6 +115,7 @@ export default function AIContentStudio({ products = [], onSendToReview }) {
     setIsGenerating(true);
     setMessage("");
     setGeneratedContent("");
+    setReelPayload(null);
     setAgentInfo(null);
 
     try {
@@ -92,6 +130,7 @@ export default function AIContentStudio({ products = [], onSendToReview }) {
           price: selectedProduct.price ?? null,
           content_type: contentType,
           tone,
+          highlights: selectedProduct.highlights ?? [],
         }),
       });
 
@@ -103,6 +142,20 @@ export default function AIContentStudio({ products = [], onSendToReview }) {
         );
       }
 
+      const structured = data.structured ?? null;
+
+      if (contentType === "Reel Script" && !structured) {
+        const reasons = (data.responsible_ai?.issues ?? []).join(", ");
+
+        throw new Error(
+          `The agent could not produce a valid reel script${
+            reasons ? ` (${reasons})` : ""
+          }. Please try again.`
+        );
+      }
+
+      setReelPayload(structured);
+      setGenerationId((id) => id + 1);
       setGeneratedContent(data.response ?? "");
 
       // Store the actual agent workflow returned by FastAPI.
@@ -116,7 +169,9 @@ export default function AIContentStudio({ products = [], onSendToReview }) {
       });
 
       setMessage(
-        "AI content generated successfully. Review and edit it before use."
+        structured && data.responsible_ai?.passed === false
+          ? "The script did not pass every check. Edit the flagged parts before sending it to review."
+          : "AI content generated successfully. Review and edit it before use."
       );
     } catch (error) {
       console.error("AI generation error:", error);
@@ -154,20 +209,22 @@ export default function AIContentStudio({ products = [], onSendToReview }) {
       productName: selectedProduct?.name ?? "Unknown product",
       contentType,
       tone,
-      content: generatedContent,
+      content: reelPayload ? activeResult.text : generatedContent,
+      payload: reelPayload,
+      price: selectedProduct?.price ?? null,
     });
 
     setMessage("Draft passed the Responsible AI check and was sent to Review Queue.");
   }
 
   async function handleCopy() {
-    if (!generatedContent) {
+    if (!copyText) {
       setMessage("Generate some content before copying.");
       return;
     }
 
     try {
-      await navigator.clipboard.writeText(generatedContent);
+      await navigator.clipboard.writeText(copyText);
       setMessage("Content copied to clipboard.");
     } catch {
       setMessage("Copy was unavailable. Select the text and copy it manually.");
@@ -305,23 +362,32 @@ export default function AIContentStudio({ products = [], onSendToReview }) {
             <button
               className="secondary-button"
               onClick={handleCopy}
-              disabled={!generatedContent}
+              disabled={!copyText}
             >
               Copy
             </button>
           </div>
 
-          <textarea
-            className="content-output"
-            aria-label="Generated content"
-            placeholder={
-              isGenerating
-                ? "ShopMate Content Agent is working..."
-                : "Your AI-generated content will appear here..."
-            }
-            value={generatedContent}
-            onChange={(event) => setGeneratedContent(event.target.value)}
-          />
+          {reelPayload ? (
+            <ReelEditor
+              key={generationId}
+              payload={reelPayload}
+              onChange={setReelPayload}
+              estimatedSeconds={activeResult?.estimated_seconds ?? null}
+            />
+          ) : (
+            <textarea
+              className="content-output"
+              aria-label="Generated content"
+              placeholder={
+                isGenerating
+                  ? "ShopMate Content Agent is working..."
+                  : "Your AI-generated content will appear here..."
+              }
+              value={generatedContent}
+              onChange={(event) => setGeneratedContent(event.target.value)}
+            />
+          )}
 
           {agentInfo && (
             <div className="ai-transparency-card">
@@ -356,28 +422,33 @@ export default function AIContentStudio({ products = [], onSendToReview }) {
             </div>
           )}
 
-          {generatedContent && activeResult && (
+          {hasContent && activeResult && (
             <div
               className={`fairness-check ${
                 contentFlagged ? "fairness-warning" : "fairness-safe"
               }`}
             >
-              <strong>Responsible AI Check</strong>
+              <strong>
+                {reelPayload ? "Script and Responsible AI Check" : "Responsible AI Check"}
+              </strong>
 
-              <p>
-                {contentFlagged
-                  ? "\u26a0\ufe0f Review required. The check flagged: " +
-                    activeResult.issues.join(", ") +
-                    "."
-                  : "\u2713 No obvious issues detected. Human review is still required."}
-              </p>
+              {contentFlagged ? (
+                <>
+                  <p>{"\u26a0\ufe0f Review required. Please fix:"}</p>
 
-              {contentFlagged && (
+                  <ul>
+                    {activeResult.issues.map((issue) => (
+                      <li key={issue}>{issue}</li>
+                    ))}
+                  </ul>
+
+                  {flaggedWording.length > 0 && (
+                    <p>Flagged wording: {flaggedWording.join(", ")}</p>
+                  )}
+                </>
+              ) : (
                 <p>
-                  Flagged wording:{" "}
-                  {Object.values(activeResult.matches ?? {})
-                    .flat()
-                    .join(", ")}
+                  {"\u2713 No obvious issues detected. Human review is still required."}
                 </p>
               )}
             </div>

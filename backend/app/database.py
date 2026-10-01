@@ -21,10 +21,20 @@ def initialize_database():
             tone TEXT NOT NULL,
             content TEXT NOT NULL,
             status TEXT NOT NULL DEFAULT 'Pending',
-            createdAt TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+            createdAt TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+            payload TEXT
         )
         """
     )
+
+    # Databases created before structured reel scripts have no payload column.
+    columns = [
+        row["name"]
+        for row in connection.execute("PRAGMA table_info(reviews)").fetchall()
+    ]
+
+    if "payload" not in columns:
+        connection.execute("ALTER TABLE reviews ADD COLUMN payload TEXT")
 
     connection.commit()
     connection.close()

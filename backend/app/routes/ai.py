@@ -3,6 +3,7 @@ from pydantic import BaseModel
 import requests
 
 from app.agent.content_agent import ShopMateContentAgent
+from app.agent.reel_script import normalize_reel, render_reel_text, validate_reel
 from app.config import OLLAMA_MODEL, OLLAMA_TIMEOUT, OLLAMA_URL
 from app.responsible_ai import check_content
 
@@ -19,10 +20,17 @@ class GenerateContentRequest(BaseModel):
     price: float | int | None = None
     content_type: str
     tone: str
+    highlights: list[str] = []
 
 
 class CheckContentRequest(BaseModel):
     content: str
+
+
+class CheckReelRequest(BaseModel):
+    product_name: str
+    price: float | int | None = None
+    payload: dict
 
 
 def _ollama_error(error: requests.RequestException) -> HTTPException:
@@ -87,6 +95,22 @@ def check_text(request: CheckContentRequest):
     return check_content(request.content)
 
 
+@router.post("/check-reel")
+def check_reel(request: CheckReelRequest):
+    """
+    Validate a structured reel script (for example, after the user edited
+    a scene). Returns the validation result and the plain-text rendering.
+    """
+
+    result = validate_reel(request.payload, request.product_name, request.price)
+
+    result["text"] = render_reel_text(
+        request.product_name, normalize_reel(request.payload)
+    )
+
+    return result
+
+
 @router.post("/generate")
 def generate_content(request: GenerateContentRequest):
     """
@@ -107,6 +131,7 @@ def generate_content(request: GenerateContentRequest):
         price=request.price,
         content_type=request.content_type,
         tone=request.tone,
+        highlights=request.highlights,
     )
 
     try:
@@ -120,6 +145,8 @@ def generate_content(request: GenerateContentRequest):
         "tone": request.tone,
 
         "response": result["response"],
+        "structured": result["structured"],
+        "estimated_seconds": result["estimated_seconds"],
 
         "model": result["model"],
         "agent": result["agent"],

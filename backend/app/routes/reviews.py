@@ -1,6 +1,9 @@
+import json
+
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel, Field
 
+from app.agent.reel_script import normalize_reel, render_reel_text, validate_reel
 from app.database import get_db_connection
 from app.responsible_ai import check_content
 
@@ -11,17 +14,46 @@ router = APIRouter(
 )
 
 
+REEL_CONTENT_TYPE = "reel script"
+
+COLUMNS = "id, productName, contentType, tone, content, status, createdAt, payload"
+
+
 # ---------- Request Models ----------
 
 class ReviewCreate(BaseModel):
     productName: str = Field(min_length=1)
     contentType: str = Field(min_length=1)
     tone: str = Field(min_length=1)
-    content: str = Field(min_length=1)
+    content: str = ""
+
+    # Structured script (reel scripts only) and the product price used to
+    # validate it. The price comes from the client for now; it will be read
+    # from the database once products are stored there.
+    payload: dict | None = None
+    price: float | int | None = None
 
 
 class ReviewStatusUpdate(BaseModel):
     status: str
+
+
+# ---------- Helpers ----------
+
+def _row_to_dict(row):
+    item = dict(row)
+
+    raw_payload = item.get("payload")
+
+    if raw_payload:
+        try:
+            item["payload"] = json.loads(raw_payload)
+        except ValueError:
+            item["payload"] = None
+    else:
+        item["payload"] = None
+
+    return item
 
 
 # ---------- Get Reviews ----------
@@ -31,42 +63,65 @@ def get_reviews():
     connection = get_db_connection()
 
     rows = connection.execute(
-        """
-        SELECT
-            id,
-            productName,
-            contentType,
-            tone,
-            content,
-            status,
-            createdAt
-        FROM reviews
-        ORDER BY id DESC
-        """
+        f"SELECT {COLUMNS} FROM reviews ORDER BY id DESC"
     ).fetchall()
 
     connection.close()
 
-    return [dict(row) for row in rows]
+    return [_row_to_dict(row) for row in rows]
 
 
 # ---------- Create Review ----------
 
 @router.post("")
 def create_review(review: ReviewCreate):
-    # Server-side Responsible AI gate: flagged content cannot enter the
+    # Server-side gate: content that fails validation cannot enter the
     # review queue, whatever the frontend does.
-    check = check_content(review.content)
+    payload_json = None
 
-    if not check["passed"]:
-        raise HTTPException(
-            status_code=422,
-            detail=(
-                "Responsible AI check failed: "
-                + ", ".join(check["issues"])
-                + ". Please edit the content and try again."
+    if review.contentType.strip().lower() == REEL_CONTENT_TYPE:
+        if review.payload is None:
+            raise HTTPException(
+                status_code=422,
+                detail="Reel scripts must include the structured script."
             )
-        )
+
+        reel = normalize_reel(review.payload)
+        check = validate_reel(reel, review.productName, review.price)
+
+        if not check["passed"]:
+            raise HTTPException(
+                status_code=422,
+                detail=(
+                    "Script check failed: "
+                    + "; ".join(check["issues"])
+                    + ". Please edit the script and try again."
+                )
+            )
+
+        content = render_reel_text(review.productName, reel)
+        payload_json = json.dumps(reel, ensure_ascii=False)
+
+    else:
+        content = review.content.strip()
+
+        if not content:
+            raise HTTPException(
+                status_code=422,
+                detail="Content must not be empty."
+            )
+
+        check = check_content(content)
+
+        if not check["passed"]:
+            raise HTTPException(
+                status_code=422,
+                detail=(
+                    "Responsible AI check failed: "
+                    + ", ".join(check["issues"])
+                    + ". Please edit the content and try again."
+                )
+            )
 
     connection = get_db_connection()
 
@@ -77,15 +132,17 @@ def create_review(review: ReviewCreate):
             contentType,
             tone,
             content,
-            status
+            status,
+            payload
         )
-        VALUES (?, ?, ?, ?, 'Pending')
+        VALUES (?, ?, ?, ?, 'Pending', ?)
         """,
         (
             review.productName,
             review.contentType,
             review.tone,
-            review.content
+            content,
+            payload_json
         )
     )
 
@@ -94,24 +151,13 @@ def create_review(review: ReviewCreate):
     review_id = cursor.lastrowid
 
     row = connection.execute(
-        """
-        SELECT
-            id,
-            productName,
-            contentType,
-            tone,
-            content,
-            status,
-            createdAt
-        FROM reviews
-        WHERE id = ?
-        """,
+        f"SELECT {COLUMNS} FROM reviews WHERE id = ?",
         (review_id,)
     ).fetchone()
 
     connection.close()
 
-    return dict(row)
+    return _row_to_dict(row)
 
 
 # ---------- Update Review Status ----------
@@ -157,21 +203,10 @@ def update_review_status(
         )
 
     row = connection.execute(
-        """
-        SELECT
-            id,
-            productName,
-            contentType,
-            tone,
-            content,
-            status,
-            createdAt
-        FROM reviews
-        WHERE id = ?
-        """,
+        f"SELECT {COLUMNS} FROM reviews WHERE id = ?",
         (review_id,)
     ).fetchone()
 
     connection.close()
 
-    return dict(row)
+    return _row_to_dict(row)

@@ -77,6 +77,8 @@ The agent performs the following steps:
 5. Revision and regeneration when required
 6. Human review
 
+For **Reel Scripts** the agent uses a structured workflow (see "Structured Reel Scripts" below): Qwen3 must answer in JSON, and code validates the script before a person sees it.
+
 The API route connecting the frontend to the agent is:
 
 ```text
@@ -131,6 +133,37 @@ Users can select:
 - Exciting
 
 The generated content is displayed in the Content Preview area where the user can review and edit it.
+
+## Structured Reel Scripts
+
+A reel script is not free text. The model returns JSON with **4 scenes** (hook, product, benefit, call to action), an Instagram caption, and 3 to 5 hashtags. Each scene has a plain-text `voiceover` (at most 20 words) and short `on_screen_text` (at most 7 words). A full script is about 30 seconds or less when spoken.
+
+```json
+{
+  "scenes": [
+    { "voiceover": "Tired of a dim, messy desk?", "on_screen_text": "Fix your desk" }
+  ],
+  "caption": "...",
+  "hashtags": ["#LEDLamp", "#DeskSetup", "#HomeOffice"]
+}
+```
+
+This structure is what the next stages (voiceover, video rendering, Instagram publishing) will consume.
+
+Code checks in `backend/app/agent/reel_script.py` reject a script that contains:
+
+- stage directions, brackets, markdown or emoji in the spoken text
+- invented customer opinions, testimonials, quotes or ratings
+- numbers that were not provided (only the product price is allowed)
+- unsupported claims such as discounts, guarantees or specifications
+- a missing product name, the wrong number of scenes, or lines that are too long
+- anything flagged by the shared Responsible AI check
+
+If the first attempt fails, the agent tells the model exactly why and retries once. The check runs again on the server when a script is sent to the Review Queue.
+
+The AI may only talk about the facts listed in a product's `highlights`. The demo highlights are taken from the product names; a real seller should replace them with verified product facts.
+
+These rules lower the chance of invented content but do not remove it. Human review is still required.
 
 ---
 
@@ -249,7 +282,7 @@ Users can:
 - Generate content
 - View the AI agent workflow
 - Inspect Responsible AI results
-- Edit generated content
+- Edit generated content (reel scripts are edited scene by scene)
 - Send content for human review
 
 ## Review Queue
@@ -304,7 +337,8 @@ shopmate.ai/
 │   ├── app/
 │   │   ├── agent/
 │   │   │   ├── __init__.py
-│   │   │   └── content_agent.py
+│   │   │   ├── content_agent.py
+│   │   │   └── reel_script.py
 │   │   │
 │   │   ├── routes/
 │   │   │   ├── ai.py
@@ -316,13 +350,17 @@ shopmate.ai/
 │   │   ├── responsible_ai.py
 │   │   └── main.py
 │   │
+│   ├── tests/
 │   ├── .env.example
-│   └── requirements.txt
+│   ├── pytest.ini
+│   ├── requirements.txt
+│   └── requirements-dev.txt
 │
 ├── frontend/
 │   ├── src/
 │   │   ├── AIContentStudio.jsx
 │   │   ├── App.jsx
+│   │   ├── ReelEditor.jsx
 │   │   └── ...
 │   │
 │   ├── package.json
@@ -362,7 +400,7 @@ PATCH /api/reviews/{review_id}
 
 Used for the human review workflow.
 
-`POST /api/reviews` runs the Responsible AI check on the server and returns `422` if the content is flagged, so flagged content cannot enter the review queue.
+`POST /api/reviews` runs the checks on the server and returns `422` if the content is flagged, so flagged content cannot enter the review queue. Reel scripts are sent with a structured `payload`, which is stored in the database and returned by `GET /api/reviews`.
 
 ## AI Test
 
@@ -380,6 +418,12 @@ POST /api/ai/check
 
 Runs the rule-based Responsible AI screening on any text (for example, text edited after generation). The content agent, this endpoint, and the review queue all use the same check.
 
+```text
+POST /api/ai/check-reel
+```
+
+Validates a structured reel script (`product_name`, `price`, `payload`) and returns the issues found, the flagged wording, an estimated spoken length, and the plain-text version of the script.
+
 ## AI Content Generation
 
 ```text
@@ -391,6 +435,8 @@ Runs the ShopMate Content Agent.
 The response includes:
 
 - Generated content
+- Structured reel script (`structured`, for reel scripts only)
+- Estimated spoken length
 - Model
 - Agent
 - Workflow
@@ -416,22 +462,24 @@ Open a terminal in the project folder. The first time only, create a virtual env
 
 ```powershell
 cd backend
-python -m venv .venv
-.venv\Scripts\activate
-pip install -r requirements.txt
+python -m venv venv
+venv\Scripts\python.exe -m pip install -r requirements.txt
 copy .env.example .env
 ```
 
-On later runs, you only need to activate the environment again:
+Start FastAPI (from the `backend` folder). This calls the virtual environment's Python directly, so no activation is needed:
 
 ```powershell
-cd backend
+venv\Scripts\python.exe -m uvicorn app.main:app --reload --port 5000
 ```
 
-Start FastAPI (from the `backend` folder):
+> PowerShell may block `venv\Scripts\activate` on some PCs. If you prefer activating the environment, run `Set-ExecutionPolicy -Scope Process -ExecutionPolicy RemoteSigned` first.
+
+To run the backend tests (they use a temporary database and a fake Ollama, so Ollama does not need to be running):
 
 ```powershell
-uvicorn app.main:app --reload --port 5000
+venv\Scripts\python.exe -m pip install -r requirements-dev.txt
+venv\Scripts\python.exe -m pytest
 ```
 
 Backend:
@@ -542,6 +590,8 @@ The ShopMate Content Agent generates a product caption using Qwen3.
 
 The generated result is then screened by the Responsible AI layer and displayed for human review.
 
+For a **Reel Script**, the result is a 4-scene structured script with voiceover lines, on-screen text, a caption and hashtags, edited scene by scene before it goes to the Review Queue.
+
 The user can edit the content and send it to the Review Queue.
 
 ---
@@ -613,7 +663,7 @@ Human Review
 The next development stage extends the human-in-the-loop workflow:
 
 ```text
-Approved reel script
+Approved structured reel script  (done)
       ↓
 Voiceover + video rendering (FFmpeg)
       ↓
