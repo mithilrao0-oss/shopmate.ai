@@ -6,6 +6,7 @@ from app.database import initialize_database
 from app.routes.reviews import router as review_router
 from app.routes.products import router as products_router
 from app.routes.ai import router as ai_router
+from app.routes.videos import router as videos_router
 
 
 app = FastAPI(
@@ -38,3 +39,4 @@ def health_check():
 app.include_router(review_router)
 app.include_router(products_router)
 app.include_router(ai_router)
+app.include_router(videos_router)
