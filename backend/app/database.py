@@ -56,5 +56,8 @@ def initialize_database():
     if "payload" not in columns:
         connection.execute("ALTER TABLE reviews ADD COLUMN payload TEXT")
 
+    if "video_path" not in columns:
+        connection.execute("ALTER TABLE reviews ADD COLUMN video_path TEXT")
+
     connection.commit()
     connection.close()
