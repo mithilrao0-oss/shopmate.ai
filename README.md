@@ -344,28 +344,89 @@ Optional: If the backend is not at `http://localhost:5000`, copy `.env.example` 
 ✅ **Reel validation & rule-based screening** (Step 2)  
 ✅ **Scene-by-scene reel editor** (Step 2)  
 ✅ **Product database with image upload** (Step 2.5)  
+✅ **Video rendering with TTS and FFmpeg** (Step 3)  
 ✅ Human review workflow  
 ✅ Responsible AI screening at multiple stages  
 ✅ Backend tests (26 passing)  
 
 ---
 
-## 🎬 Planned: Video Rendering & Instagram Publishing
+## 🎬 Video Rendering (Step 3)
 
-Next steps (not yet implemented):
+### How It Works
+1. **Text-to-Speech (TTS):** Voiceover text is converted to audio using pyttsx3 (local, offline).
+2. **Image Composition:** Product image is scaled and centered to 1080×1920 (9:16 aspect ratio).
+3. **Text Overlays:** Each scene's on-screen text is overlaid on the image with a semi-transparent background.
+4. **Video Assembly:** FFmpeg composes frames + audio into an MP4 file.
+5. **Storage:** Video path is saved in the database.
 
-### Step 3: Video Renderer
-- Read a reel script (structured JSON).
-- Use product image + voiceover text to render a 720×1280 or 1080×1920 video.
-- **Tools:** FFmpeg, text-to-speech (Piper or edge-tts), MoviePy.
-- Output: MP4 file ready for preview or upload.
+### Requirements
+- **FFmpeg:** Install with `winget install Gyan.FFmpeg` (Windows) or your package manager.
+- **Python libraries:** pyttsx3, pydub, pillow (in `requirements.txt`).
 
-### Step 4: Instagram Publishing Agent
+### API Endpoint
+```
+POST /api/videos/render
+```
+
+Request:
+```json
+{
+  "review_id": 5,
+  "product_image_path": "media/product_1_abc123.jpg"
+}
+```
+
+Response:
+```json
+{
+  "review_id": 5,
+  "video_path": "media/reel_5_product.mp4",
+  "message": "Video rendered successfully"
+}
+```
+
+### Video Specifications
+- **Resolution:** 1080×1920 (9:16 for Instagram Reels)
+- **Frame rate:** 30 FPS
+- **Codec:** H.264 video, AAC audio
+- **Duration:** ~8 seconds per scene (32 seconds total for 4 scenes)
+- **Quality:** CRF 23 (good balance of quality and file size)
+
+### Text Overlay Styling
+- **Font:** System fonts (Arial on Windows, Helvetica on macOS, DejaVuSans on Linux)
+- **Color:** White text on semi-transparent black background
+- **Position:** Bottom of frame (can be adjusted per scene)
+- **Wrapping:** Automatic word wrapping to fit frame width
+
+### Example Workflow
+1. User approves a reel script in the Review Queue.
+2. Frontend sends a render request with the review ID and product image path.
+3. Backend:
+   - Extracts voiceover text from each scene.
+   - Generates audio using TTS (takes a few seconds).
+   - Renders video frames with text overlays.
+   - Assembles frames + audio into MP4 using FFmpeg.
+   - Stores the video path in the database.
+4. Frontend shows a preview link so the user can download or proceed to Instagram publishing.
+
+### Limitations
+- **Voiceover quality:** pyttsx3 uses system TTS, which varies by OS. On Windows, you can improve it by installing better voices via Settings > Time & Language > Speech.
+- **No background music:** The current implementation includes only voiceover. Add background music by editing `app/routes/videos.py` to mix audio.
+- **No panning or effects:** The template uses static images. Add panning, zoom, or effects by enhancing the frame generation logic.
+- **Speed:** Video rendering takes several minutes on CPU-only machines (depends on scene count and image resolution).
+
+---
+
+## 🚀 Planned: Instagram Publishing Agent (Step 4)
+
+Next step (not yet implemented):
+
 - Once a video is approved, an agent posts it via the **Instagram Graph API**.
 - Requires: Meta developer account, Business/Creator Instagram account, app approval.
 - Stores the posted video's IG link and status in the database.
 
-These steps are designed to extend the human-in-the-loop model: the video is still reviewed before posting.
+The publishing workflow extends the human-in-the-loop model: the video is still reviewed before posting.
 
 ---
 
