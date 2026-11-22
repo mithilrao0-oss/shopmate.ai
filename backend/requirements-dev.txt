@@ -1,4 +1,3 @@
 -r requirements.txt
 pytest
-python-multipart
 httpx
