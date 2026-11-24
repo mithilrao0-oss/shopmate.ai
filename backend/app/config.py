@@ -53,3 +53,11 @@ CORS_ORIGINS = [
     ).split(",")
     if origin.strip()
 ]
+
+# ---------- Media and publishing ----------
+MEDIA_DIR = BACKEND_DIR / "media"
+
+# "dry-run" (the default) records a post as published without contacting
+# Instagram or YouTube. Only the exact value "live" turns real posting on, so a
+# typo can never post by accident.
+PUBLISH_MODE = "live" if os.getenv("PUBLISH_MODE", "dry-run").strip().lower() == "live" else "dry-run"
