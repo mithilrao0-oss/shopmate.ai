@@ -59,5 +59,29 @@ def initialize_database():
     if "video_path" not in columns:
         connection.execute("ALTER TABLE reviews ADD COLUMN video_path TEXT")
 
+    # Posts table: one row per reel per platform (Instagram, YouTube).
+    # Status: Queued -> Publishing -> Posted, or Failed / Cancelled.
+    connection.execute(
+        """
+        CREATE TABLE IF NOT EXISTS posts (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            review_id INTEGER NOT NULL,
+            platform TEXT NOT NULL,
+            status TEXT NOT NULL DEFAULT 'Queued',
+            title TEXT,
+            caption TEXT,
+            video_path TEXT NOT NULL,
+            mode TEXT,
+            external_id TEXT,
+            external_url TEXT,
+            error TEXT,
+            postedAt TEXT,
+            createdAt TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+            updatedAt TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+            FOREIGN KEY (review_id) REFERENCES reviews (id)
+        )
+        """
+    )
+
     connection.commit()
     connection.close()
