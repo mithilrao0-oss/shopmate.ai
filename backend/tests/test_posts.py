@@ -193,3 +193,44 @@ def test_list_and_filter_posts(env):
 def test_mode_endpoint(env):
     _, client = env
     assert client.get("/api/posts/mode").json() == {"mode": "dry-run"}
+
+
+def test_live_instagram_without_credentials_fails_with_a_clear_message(env, monkeypatch):
+    tmp_path, client = env
+    post = queue(client, make_review(tmp_path), ["instagram"]).json()["posts"][0]
+
+    monkeypatch.setattr("app.routes.posts.PUBLISH_MODE", "live")
+    monkeypatch.setattr("app.publishing.instagram.INSTAGRAM_ACCESS_TOKEN", "")
+    monkeypatch.setattr("app.publishing.instagram.INSTAGRAM_ACCOUNT_ID", "")
+
+    result = client.post(f"/api/posts/{post['id']}/publish").json()
+
+    assert result["status"] == "Failed"
+    assert "IG_ACCESS_TOKEN" in result["error"]
+
+
+def test_live_instagram_publish_is_recorded(env, monkeypatch):
+    from app.publishing.base import PublishResult, Publisher
+
+    class FakeInstagram(Publisher):
+        platform = "instagram"
+        seen = {}
+
+        def publish(self, video_file, title, caption):
+            FakeInstagram.seen = {"file": video_file.name, "caption": caption}
+            return PublishResult(external_id="media-77", external_url="https://www.instagram.com/reel/q/")
+
+    tmp_path, client = env
+    post = queue(client, make_review(tmp_path), ["instagram"]).json()["posts"][0]
+
+    monkeypatch.setattr("app.routes.posts.PUBLISH_MODE", "live")
+    monkeypatch.setattr("app.routes.posts.build_instagram_publisher", lambda: FakeInstagram())
+
+    result = client.post(f"/api/posts/{post['id']}/publish").json()
+
+    assert result["status"] == "Posted"
+    assert result["mode"] == "live"
+    assert result["external_id"] == "media-77"
+    assert result["external_url"] == "https://www.instagram.com/reel/q/"
+    assert FakeInstagram.seen["file"] == "reel.mp4"
+    assert "Upgrade your desk." in FakeInstagram.seen["caption"]

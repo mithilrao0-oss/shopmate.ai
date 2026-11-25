@@ -61,3 +61,20 @@ MEDIA_DIR = BACKEND_DIR / "media"
 # Instagram or YouTube. Only the exact value "live" turns real posting on, so a
 # typo can never post by accident.
 PUBLISH_MODE = "live" if os.getenv("PUBLISH_MODE", "dry-run").strip().lower() == "live" else "dry-run"
+
+# ---------- Instagram ----------
+# Keep real values in backend/.env (gitignored), never in this file.
+INSTAGRAM_ACCESS_TOKEN = os.getenv("IG_ACCESS_TOKEN", "")
+INSTAGRAM_ACCOUNT_ID = os.getenv("IG_USER_ID", "")
+
+# Unified login and Facebook login use graph.facebook.com; Instagram login uses graph.instagram.com.
+INSTAGRAM_API_HOST = os.getenv("INSTAGRAM_API_HOST", "https://graph.facebook.com").rstrip("/")
+INSTAGRAM_API_VERSION = os.getenv("INSTAGRAM_API_VERSION", "v26.0")
+
+# "resumable": upload the video file straight to Meta (no public link needed).
+# "url": Instagram downloads the video from INSTAGRAM_PUBLIC_VIDEO_BASE_URL + file name.
+INSTAGRAM_UPLOAD_MODE = os.getenv("INSTAGRAM_UPLOAD_MODE", "resumable").strip().lower()
+INSTAGRAM_PUBLIC_VIDEO_BASE_URL = os.getenv("INSTAGRAM_PUBLIC_VIDEO_BASE_URL", "").strip()
+
+# Tell Instagram the reel was made with AI (script and voice). On by default.
+INSTAGRAM_AI_LABEL = os.getenv("INSTAGRAM_AI_LABEL", "true").strip().lower() != "false"
