@@ -35,3 +35,8 @@ backend/media/
 Thumbs.db
 .vscode/
 *.log
+
+# Secrets (API keys, OAuth files)
+backend/secrets/
+*client_secret*.json
+*token*.json
