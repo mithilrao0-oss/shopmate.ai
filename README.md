@@ -8,9 +8,10 @@ The project showcases:
 - A **human-in-the-loop workflow**: AI drafts content, and a person reviews it before use.
 - **Responsible AI screening** at multiple stages (generation, editing, submission).
 - **Structured reel scripts** (JSON) that are validated before reaching a person.
-- **Local AI inference** using Ollama and the small Qwen3 1.7B model, so no data leaves your machine.
+- **Local AI inference** using Ollama and the small Qwen3 1.7B model: scripts, voice and video are all made on your own machine.
+- **A safe publish queue**: only approved reels with a rendered video can be queued, and posting defaults to a harmless dry-run mode.
 
-**Status:** Core features complete. Next: video rendering and Instagram publishing (planned).
+**Status:** Script generation, human review, video rendering and a publish queue (dry-run) are working and tested. **Current goal: real Instagram Reels publishing.** YouTube Shorts and customer tracking come later.
 
 ---
 
@@ -43,6 +44,12 @@ The user edits and refines the draft, then sends it to the Review Queue.
 
 ### 5. Review Queue
 Approved drafts are marked for use. Rejected drafts loop back.
+
+### 6. Video Rendering
+An approved reel script plus a product image becomes a vertical MP4 on your own machine: a synthetic voice reads each scene, the image slowly zooms or pans, and captions are burned in. Ollama only writes the script text; it does not generate any video.
+
+### 7. Publish Queue
+An approved reel with a saved final video can be queued for Instagram (and later YouTube Shorts), then published. In the default dry-run mode a post is only recorded, so the whole flow can be tested without contacting any platform.
 
 ---
 
@@ -136,12 +143,17 @@ The workflow ensures that AI output never goes public without a person reading i
 ### Database
 - **SQLite** (`shopmate.db`)
   - `products`: name, category, cost, price, rating, status, supplier, highlights, image_path
-  - `reviews`: productName, contentType, tone, content, status, payload (for reel scripts)
+  - `reviews`: productName, contentType, tone, content, status, payload (for reel scripts), video_path
+  - `posts`: review_id, platform, status, title, caption, video_path, mode, external_id, external_url, error, postedAt
 
 ### AI & NLP
 - **Ollama** (local inference engine)
 - **Qwen3 1.7B** (LLM, lightweight for CPU-only machines)
 - **Rule-based validation** (no external APIs)
+
+### Video & Publishing
+- **FFmpeg** (scene clips, zoom/pan, burned-in captions), **Pillow** (background image), **pyttsx3** (offline voice)
+- **Publisher interface** with a dry-run publisher (Instagram and YouTube publishers are planned)
 
 ---
 
@@ -154,17 +166,26 @@ shopmate.ai/
 │   │   ├── agent/
 │   │   │   ├── content_agent.py       # Main AI workflow
 │   │   │   └── reel_script.py         # Reel validation & rendering
+│   │   ├── publishing/
+│   │   │   ├── base.py                # Publisher interface
+│   │   │   └── dry_run.py             # Dry-run publisher (no platform contact)
 │   │   ├── routes/
 │   │   │   ├── ai.py                  # /api/ai/* endpoints
+│   │   │   ├── posts.py               # /api/posts/* publish queue
 │   │   │   ├── products.py            # /api/products/* endpoints
-│   │   │   └── reviews.py             # /api/reviews/* endpoints
+│   │   │   ├── reviews.py             # /api/reviews/* endpoints
+│   │   │   └── videos.py              # /api/videos/* endpoints
+│   │   ├── video/
+│   │   │   ├── renderer.py            # FFmpeg video rendering
+│   │   │   └── tts.py                 # Per-scene offline voiceover
 │   │   ├── config.py                  # Config from .env
 │   │   ├── database.py                # SQLite setup
 │   │   ├── responsible_ai.py          # Screening rules
 │   │   └── main.py                    # FastAPI app
 │   ├── tests/
 │   │   ├── test_reel_script.py        # Reel validation tests
-│   │   └── test_api.py                # API tests
+│   │   ├── test_api.py                # API tests
+│   │   └── test_posts.py              # Publish queue tests
 │   ├── media/                         # Product images (generated)
 │   ├── .env.example                   # Config template
 │   ├── pytest.ini                     # Test config
@@ -256,6 +277,24 @@ POST /api/ai/test
 
 - `POST /api/ai/test` tests direct communication with Ollama.
 
+### Videos
+```
+POST /api/videos/render
+GET /api/videos/{review_id}
+```
+See **Video Rendering** below.
+
+### Posts (publish queue)
+```
+GET /api/posts/mode
+POST /api/posts
+GET /api/posts
+GET /api/posts/{id}
+POST /api/posts/{id}/publish
+POST /api/posts/{id}/cancel
+```
+See **Publish Queue** below.
+
 ---
 
 ## ⚙️ Running the Project
@@ -274,7 +313,7 @@ POST /api/ai/test
 ollama run qwen3:1.7b
 ```
 
-Leave this window open. Ollama listens on `http://localhost:11434`.
+Leave this window open. Ollama listens on `http://localhost:11434`. If it says the port is already in use, Ollama is already running in the background, which is fine.
 
 ### 2. Start the FastAPI Backend
 
@@ -293,7 +332,9 @@ Start the server (no activation needed):
 venv\Scripts\python.exe -m uvicorn app.main:app --reload --port 5000
 ```
 
-Backend runs at `http://localhost:5000`.
+Backend runs at `http://localhost:5000`. Interactive API docs are at `http://localhost:5000/docs`.
+
+Optional settings in `backend/.env` (see `.env.example`): `OLLAMA_URL`, `OLLAMA_MODEL`, `OLLAMA_TIMEOUT`, `SHOPMATE_DB`, `CORS_ORIGINS`, and `PUBLISH_MODE` (`dry-run` by default).
 
 To run tests:
 ```powershell
@@ -323,7 +364,7 @@ Optional: If the backend is not at `http://localhost:5000`, copy `.env.example` 
 2. **Go to AI Content**.
 3. **Select "LED Desk Lamp"**, set Content Type to **Reel Script**, Tone to **Friendly**.
 4. **Click Generate Content**.
-   - Ollama runs on your CPU (expect 5–10 minutes on a Pentium).
+   - Ollama runs on your CPU. On an Intel i3-1215U laptop, Qwen3 1.7B generates about 10–12 tokens per second, so a reel script takes well under a minute once the model is loaded. Older machines are slower.
    - The reel script appears as 4 editable scenes.
 5. **Check the Responsible AI** box below the script.
    - If ✓ "No obvious issues", proceed to step 6.
@@ -332,6 +373,13 @@ Optional: If the backend is not at `http://localhost:5000`, copy `.env.example` 
 7. **Go to Review Queue**.
    - The draft appears as a "Pending" item.
    - Click **Approve** or **Reject**.
+8. **Render the video** (API docs page, `http://localhost:5000/docs`):
+   - `POST /api/products/{id}/image` to upload a product photo and copy the returned `image_path`.
+   - `POST /api/videos/render` with the approved `review_id`, that `image_path` and `"quality": "preview"`, then open the MP4 in `backend/media/`.
+   - Render again with `"quality": "final"` to save the video on the review.
+9. **Queue and publish** (dry-run):
+   - `POST /api/posts` with `{ "review_id": 2, "platforms": ["instagram"] }`.
+   - `POST /api/posts/{id}/publish`. The post becomes `Posted` with a fake `dry-run-...` id; nothing is sent anywhere.
 
 ---
 
@@ -344,89 +392,113 @@ Optional: If the backend is not at `http://localhost:5000`, copy `.env.example` 
 ✅ **Reel validation & rule-based screening** (Step 2)  
 ✅ **Scene-by-scene reel editor** (Step 2)  
 ✅ **Product database with image upload** (Step 2.5)  
-✅ **Video rendering with TTS and FFmpeg** (Step 3)  
+✅ **Video rendering** (Step 3): per-scene timing, zoom/pan, synced captions, preview and final quality  
+✅ **Publish queue with dry-run mode** (Step 4)  
 ✅ Human review workflow  
 ✅ Responsible AI screening at multiple stages  
-✅ Backend tests (26 passing)  
+✅ Backend tests (40 passing)  
+🚧 **Instagram Reels publishing** (Step 5, in progress)  
+⏳ YouTube Shorts publishing, customer sign-up tracking with Telegram alerts (later)  
 
 ---
 
 ## 🎬 Video Rendering (Step 3)
 
 ### How It Works
-1. **Text-to-Speech (TTS):** Voiceover text is converted to audio using pyttsx3 (local, offline).
-2. **Image Composition:** Product image is scaled and centered to 1080×1920 (9:16 aspect ratio).
-3. **Text Overlays:** Each scene's on-screen text is overlaid on the image with a semi-transparent background.
-4. **Video Assembly:** FFmpeg composes frames + audio into an MP4 file.
-5. **Storage:** Video path is saved in the database.
+1. **Per-scene voiceover:** each scene is spoken separately with pyttsx3 (local, offline), so every scene lasts exactly as long as its own audio, plus a 0.4 s pause (at least 2 s per scene).
+2. **Background:** the product image becomes a 9:16 background. A photo that is not already close to 9:16 is shown whole in front of a blurred, dimmed copy of itself, so the product is never cropped.
+3. **Camera movement:** each scene gets a slow zoom in, pan, zoom out or pan back (FFmpeg `zoompan`), cycling through the four moves.
+4. **Captions:** the on-screen text is a yellow headline at the top for the whole scene. The spoken words appear in short white chunks near the bottom, timed in proportion to their length (an estimate, not exact word timing). Both stay clear of Instagram's buttons.
+5. **Assembly:** FFmpeg joins the scene clips and burns the captions in (ASS subtitles). No per-frame image files are written.
+6. **Memory:** before rendering, the Ollama model is unloaded to free RAM (useful on 8 GB machines).
+7. **Storage:** a final video's path is saved on the review. Previews are not saved.
 
 ### Requirements
-- **FFmpeg:** Install with `winget install Gyan.FFmpeg` (Windows) or your package manager.
-- **Python libraries:** pyttsx3, pydub, pillow (in `requirements.txt`).
+- **FFmpeg:** `winget install Gyan.FFmpeg` (Windows). Open a new terminal afterwards so the PATH updates.
+- **Python libraries:** pyttsx3, pillow (in `requirements.txt`).
 
-### API Endpoint
+### API Endpoints
 ```
 POST /api/videos/render
+GET /api/videos/{review_id}
 ```
 
 Request:
 ```json
 {
-  "review_id": 5,
-  "product_image_path": "media/product_1_abc123.jpg"
+  "review_id": 2,
+  "product_image_path": "media/product_2_abc123.webp",
+  "quality": "preview"
 }
 ```
+`quality` is `final` (default) or `preview`.
 
 Response:
 ```json
 {
-  "review_id": 5,
-  "video_path": "media/reel_5_product.mp4",
+  "review_id": 2,
+  "video_path": "media/reel_2_product_2_abc123_preview.mp4",
+  "quality": "preview",
+  "duration_seconds": 14.2,
+  "warnings": [],
   "message": "Video rendered successfully"
 }
 ```
+`GET /api/videos/{review_id}` returns the saved final video path.
 
 ### Video Specifications
-- **Resolution:** 1080×1920 (9:16 for Instagram Reels)
-- **Frame rate:** 30 FPS
-- **Codec:** H.264 video, AAC audio
-- **Duration:** ~8 seconds per scene (32 seconds total for 4 scenes)
-- **Quality:** CRF 23 (good balance of quality and file size)
-
-### Text Overlay Styling
-- **Font:** System fonts (Arial on Windows, Helvetica on macOS, DejaVuSans on Linux)
-- **Color:** White text on semi-transparent black background
-- **Position:** Bottom of frame (can be adjusted per scene)
-- **Wrapping:** Automatic word wrapping to fit frame width
-
-### Example Workflow
-1. User approves a reel script in the Review Queue.
-2. Frontend sends a render request with the review ID and product image path.
-3. Backend:
-   - Extracts voiceover text from each scene.
-   - Generates audio using TTS (takes a few seconds).
-   - Renders video frames with text overlays.
-   - Assembles frames + audio into MP4 using FFmpeg.
-   - Stores the video path in the database.
-4. Frontend shows a preview link so the user can download or proceed to Instagram publishing.
+- **Final:** 1080×1920 at 30 FPS, CRF 23. **Preview:** 720×1280 at 24 FPS, CRF 28.
+- **Codec:** H.264 video, AAC audio.
+- **Duration:** the sum of the scene voiceovers plus pauses (typically 12 to 20 seconds for a 4-scene reel).
+- **Image formats:** `.jpg`, `.jpeg`, `.png`, `.webp` only.
+- **Speed (measured on an Intel i3-1215U laptop, no GPU):** an 18 s test reel rendered in about 5 s as a preview and about 10 s as final.
 
 ### Limitations
-- **Voiceover quality:** pyttsx3 uses system TTS, which varies by OS. On Windows, you can improve it by installing better voices via Settings > Time & Language > Speech.
-- **No background music:** The current implementation includes only voiceover. Add background music by editing `app/routes/videos.py` to mix audio.
-- **No panning or effects:** The template uses static images. Add panning, zoom, or effects by enhancing the frame generation logic.
-- **Speed:** Video rendering takes several minutes on CPU-only machines (depends on scene count and image resolution).
+- **Voice:** pyttsx3 uses the system voice, which sounds synthetic. A better offline voice (Piper) is planned.
+- **No background music.**
+- **Caption timing is an estimate** (spread across each scene by text length).
+- **One product image per video.**
+- **The render endpoint takes an image path, not a product ID**, and does not check that the review is approved. The publish queue does check approval.
+- If an FFmpeg build cannot draw captions, the video is still produced and the response lists a warning.
 
 ---
 
-## 🚀 Planned: Instagram Publishing Agent (Step 4)
+## 📤 Publish Queue (Step 4)
 
-Next step (not yet implemented):
+Approved reels with a rendered final video can be queued for Instagram and/or YouTube, then published. Each post is a row in the `posts` table with a status: `Queued` → `Publishing` → `Posted`, or `Failed` / `Cancelled`.
 
-- Once a video is approved, an agent posts it via the **Instagram Graph API**.
-- Requires: Meta developer account, Business/Creator Instagram account, app approval.
-- Stores the posted video's IG link and status in the database.
+### Safety rules
+- Only reels (content type "Reel Script") that are **Approved** and have a **saved final video** can be queued.
+- The video must be a file inside `backend/media/`.
+- The same reel cannot be queued twice for a platform while a post is Queued, Publishing or Posted.
+- Publishing claims the post first, so a double click can never post it twice.
+- Just before publishing, the reel is re-checked: if it was rejected after queueing, the post fails instead of going out.
+- `PUBLISH_MODE=dry-run` (the default) records a post as published without contacting any platform. Only the exact value `live` turns on real posting, and live mode currently fails with "not set up yet" until the real publishers exist.
 
-The publishing workflow extends the human-in-the-loop model: the video is still reviewed before posting.
+### API Endpoints
+- `GET /api/posts/mode` returns `dry-run` or `live`.
+- `POST /api/posts` queues an approved reel: `{ "review_id": 2, "platforms": ["instagram", "youtube"] }`. Returns one post per platform.
+- `GET /api/posts` lists posts, newest first (optional `status` and `review_id` filters).
+- `GET /api/posts/{id}` returns one post.
+- `POST /api/posts/{id}/publish` publishes a queued post. The result (`Posted` or `Failed`, with an error message) is saved on the post.
+- `POST /api/posts/{id}/cancel` cancels a post that has not been published.
+
+YouTube posts get `#Shorts` added to the title and description.
+
+---
+
+## 📷 Instagram Publishing (Step 5, in progress)
+
+**Goal:** publish approved reels to Instagram through the Instagram API, behind the same human approval gate and queue.
+
+**What it needs:**
+- An Instagram **professional** (Business or Creator) account.
+- A Meta developer app using the use case "Manage messaging & content on Instagram".
+- An access token and the Instagram account ID, stored in `backend/.env` (gitignored).
+
+**Status:** the Instagram account and the Meta app are created. Meta's current "API setup with Unified login" requires a business portfolio, so the token step is still being completed. The Instagram publisher is not written yet; dry-run stays the default until it is tested.
+
+**Design:** an `InstagramPublisher` will plug into the existing publisher interface, so the queue, safety rules and tests stay unchanged.
 
 ---
 
@@ -443,10 +515,18 @@ This project uses a **small, lightweight model (Qwen3 1.7B)** for local inferenc
 
 ---
 
+## 🐞 Known Issues
+
+- **The small model invents claims.** Even when a product has real highlights, Qwen3 1.7B sometimes adds features that were never provided (for example "eco-friendly" or "long-lasting" for a desk lamp). The checker flags some of these ("guaranteed", "cures", "long-lasting") but it is word-based and does not catch everything, so a human must read every script.
+- **Products page is demo data** in the browser; the product database and image upload are used through the API.
+- **Trend Insights uses sample data** and does not predict virality.
+
+---
+
 ## 🔐 Privacy & Security
 
-- **Data:** All inference happens locally via Ollama. No data is sent to external APIs or cloud services.
-- **Credentials:** API keys and tokens (when added for Instagram) are stored in `.env` only, never committed to git.
+- **Data:** All AI inference, voice and video rendering happen locally. Content is sent to a platform only after a person approves it and queues it, and only when `PUBLISH_MODE=live`.
+- **Credentials:** API keys, tokens and OAuth files are stored in `backend/.env` or `backend/secrets/` only. Both are gitignored and must never be committed.
 - **Images:** Product images are stored in `backend/media/`, which is gitignored.
 
 ---
@@ -482,30 +562,20 @@ This project is provided as-is for educational purposes.
 
 ## 🚀 Next Developer Tasks
 
-If continuing this project:
+**Current goal: Instagram only.**
 
-1. **Implement video rendering** (Step 3):
-   - Text-to-speech for voiceovers.
-   - Image composition with captions and effects.
-   - FFmpeg command orchestration.
-   - Output: MP4 preview.
+1. **Finish the Meta setup:** attach a business portfolio to the app, add the Instagram account, and generate the access token and account ID in `backend/.env`.
+2. **Write `InstagramPublisher`** (create a REELS media container, wait until it is ready, publish) with tests that mock the HTTP calls, then try it on your own account in `live` mode.
+3. **Add Publish buttons and post status to the UI** (queue, publish, status, error message).
+4. **Optional scheduler** that publishes queued posts at set times.
 
-2. **Implement Instagram publishing** (Step 4):
-   - OAuth flow for Instagram Business Account.
-   - Reel upload via Graph API.
-   - Status tracking in database.
-
-3. **Improve the AI model:**
-   - Try Qwen3 7B or another slightly larger model if hardware allows.
-   - Fine-tune the prompt for better product fact recognition.
-   - Expand the validation rules based on real-world failures.
-
-4. **Polish the UI:**
-   - Add a proper product management page (create, edit, delete, upload images).
-   - Add a video preview player.
-   - Add bulk content generation.
-
-5. **Tests:** Expand test coverage for the frontend.
+**Later:**
+- YouTube Shorts publisher (Google OAuth in Testing mode expires every 7 days).
+- Customer sign-up and purchase tracking with Telegram alerts and a self-updating customer file.
+- A better offline voice (Piper) and optional background music.
+- Render endpoint: accept a product ID instead of a file path, and require an approved review.
+- Stronger claim checking: flag product features that are not in the product's highlights.
+- Frontend tests.
 
 ---
 
