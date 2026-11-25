@@ -17,6 +17,7 @@ from app.config import BACKEND_DIR, MEDIA_DIR, PUBLISH_MODE
 from app.database import get_db_connection
 from app.publishing.base import PublishError, Publisher
 from app.publishing.dry_run import DryRunPublisher
+from app.publishing.instagram import build_instagram_publisher
 
 
 router = APIRouter(prefix="/api/posts", tags=["Posts"])
@@ -58,11 +59,14 @@ def _video_file(video_path: str | None) -> Path | None:
 
 
 def _publisher_for(platform: str) -> Publisher:
-    if _mode() == "live":
-        # Real Instagram and YouTube publishers are added in the next steps.
-        raise PublishError(f"Live publishing to {platform} is not set up yet")
+    if _mode() != "live":
+        return DryRunPublisher(platform)
 
-    return DryRunPublisher(platform)
+    if platform == "instagram":
+        return build_instagram_publisher()
+
+    # The YouTube publisher comes later.
+    raise PublishError(f"Live publishing to {platform} is not set up yet")
 
 
 def _post_text(product_name: str, payload: dict, platform: str) -> tuple[str, str]:
