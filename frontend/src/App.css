@@ -1470,3 +1470,82 @@ tbody tr:last-child td {
     flex-direction: column;
   }
 }
+/* Instagram Reel publishing workflow */
+
+.publish-workflow {
+  margin-top: 20px;
+  padding: 18px;
+  border: 1px solid #e7e8f2;
+  border-radius: 10px;
+  background: #fafaff;
+}
+
+.publish-workflow h4 {
+  margin: 0 0 12px;
+  color: #364155;
+  font-size: 13px;
+}
+
+.workflow-product,
+.workflow-message,
+.workflow-error {
+  margin: 10px 0;
+  font-size: 12px;
+  line-height: 1.6;
+}
+
+.workflow-product,
+.workflow-message {
+  color: #737d91;
+}
+
+.workflow-error {
+  color: #c0394b;
+}
+
+.reel-video-preview {
+  margin-top: 18px;
+}
+
+.reel-video-preview video {
+  display: block;
+  width: 100%;
+  max-width: 420px;
+  max-height: 600px;
+  border-radius: 10px;
+  background: #171717;
+}
+
+.reel-caption {
+  max-width: 600px;
+  padding: 13px;
+  border: 1px solid #e8ebf1;
+  border-radius: 8px;
+  background: #ffffff;
+  color: #566176;
+  font-size: 12px;
+  line-height: 1.7;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+.publish-result {
+  margin-top: 16px;
+  padding: 14px;
+  border: 1px solid #dcefe5;
+  border-radius: 8px;
+  background: #f4fbf7;
+  color: #287653;
+  font-size: 12px;
+  line-height: 1.6;
+}
+
+.publish-result p {
+  margin: 7px 0 0;
+}
+
+.publish-result a {
+  color: #5148c8;
+  font-weight: 700;
+  text-decoration: underline;
+}

@@ -40,3 +40,17 @@ Thumbs.db
 backend/secrets/
 *client_secret*.json
 *token*.json
+
+# Generated files
+backend/media/reel_*
+*.log
+
+# Local database and backups
+*.db
+*.sqlite3
+ShopMate_Backup/
+
+# Local development backups
+*.backup
+*.pre-instagram
+*.incomplete-backup

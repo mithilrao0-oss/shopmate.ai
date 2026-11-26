@@ -1,9 +1,11 @@
+
 import json
 from pathlib import Path
 from typing import Literal
 
 import requests
 from fastapi import APIRouter, HTTPException
+from fastapi.responses import FileResponse
 from pydantic import BaseModel
 
 from app.config import OLLAMA_MODEL, OLLAMA_URL
@@ -73,9 +75,7 @@ def _unload_ollama_model() -> None:
 @router.post("/render")
 def render_video(request: RenderRequest):
     """
-    Render a reel script from a review into an MP4 video.
-
-    Each scene is spoken separately and lasts as long as its own voiceover.
+    Render a reel script from an approved review into an MP4 video.
     """
 
     image_path = _validated_image(request.product_image_path)
@@ -85,12 +85,28 @@ def render_video(request: RenderRequest):
 
     try:
         review = connection.execute(
-            "SELECT id, productName, payload FROM reviews WHERE id = ?",
+            """
+            SELECT id, productName, payload, status, contentType
+            FROM reviews
+            WHERE id = ?
+            """,
             (request.review_id,),
         ).fetchone()
 
         if not review:
             raise HTTPException(status_code=404, detail="Review not found")
+
+        if review["status"] != "Approved":
+            raise HTTPException(
+                status_code=400,
+                detail="Only approved reviews can be rendered",
+            )
+
+        if review["contentType"] != "Reel Script":
+            raise HTTPException(
+                status_code=400,
+                detail="Only Reel Script reviews can be rendered",
+            )
 
         if not review["payload"]:
             raise HTTPException(
@@ -101,12 +117,18 @@ def render_video(request: RenderRequest):
         try:
             payload = json.loads(review["payload"])
         except (ValueError, TypeError):
-            raise HTTPException(status_code=400, detail="Invalid reel script payload")
+            raise HTTPException(
+                status_code=400,
+                detail="Invalid reel script payload",
+            )
 
         scenes = payload.get("scenes") or []
 
         if not scenes:
-            raise HTTPException(status_code=400, detail="The reel script has no scenes")
+            raise HTTPException(
+                status_code=400,
+                detail="The reel script has no scenes",
+            )
 
         _unload_ollama_model()
 
@@ -120,7 +142,10 @@ def render_video(request: RenderRequest):
                 prefix=f"voiceover_{request.review_id}",
             )
         except Exception as error:
-            raise HTTPException(status_code=500, detail=f"TTS failed: {error}")
+            raise HTTPException(
+                status_code=500,
+                detail=f"TTS failed: {error}",
+            )
 
         suffix = "_preview" if request.quality == "preview" else ""
         file_name = f"reel_{request.review_id}_{image_path.stem}{suffix}.mp4"
@@ -135,7 +160,8 @@ def render_video(request: RenderRequest):
             )
         except Exception as error:
             raise HTTPException(
-                status_code=500, detail=f"Video rendering failed: {error}"
+                status_code=500,
+                detail=f"Video rendering failed: {error}",
             )
 
         relative_path = f"media/{file_name}"
@@ -164,11 +190,9 @@ def render_video(request: RenderRequest):
         connection.close()
 
 
-@router.get("/{review_id}")
-def get_video(review_id: int):
-    """
-    Get the video path for a review (if it exists).
-    """
+@router.get("/{review_id}/file")
+def get_video_file(review_id: int):
+    """Stream the rendered MP4 video for browser preview."""
 
     connection = get_db_connection()
 
@@ -184,6 +208,58 @@ def get_video(review_id: int):
         raise HTTPException(status_code=404, detail="Review not found")
 
     if not review["video_path"]:
-        raise HTTPException(status_code=404, detail="No video has been rendered yet")
+        raise HTTPException(
+            status_code=404,
+            detail="No video has been rendered yet",
+        )
 
-    return {"review_id": review_id, "video_path": review["video_path"]}
+    video_path = (MEDIA_DIR.parent / review["video_path"]).resolve()
+
+    try:
+        video_path.relative_to(MEDIA_DIR.resolve())
+    except ValueError:
+        raise HTTPException(
+            status_code=400,
+            detail="Invalid video path",
+        )
+
+    if not video_path.is_file():
+        raise HTTPException(
+            status_code=404,
+            detail="Video file not found",
+        )
+
+    return FileResponse(
+        video_path,
+        media_type="video/mp4",
+        filename=video_path.name,
+    )
+
+
+@router.get("/{review_id}")
+def get_video(review_id: int):
+    """Get the video path for a review, if it exists."""
+
+    connection = get_db_connection()
+
+    try:
+        review = connection.execute(
+            "SELECT id, video_path FROM reviews WHERE id = ?",
+            (review_id,),
+        ).fetchone()
+    finally:
+        connection.close()
+
+    if not review:
+        raise HTTPException(status_code=404, detail="Review not found")
+
+    if not review["video_path"]:
+        raise HTTPException(
+            status_code=404,
+            detail="No video has been rendered yet",
+        )
+
+    return {
+        "review_id": review_id,
+        "video_path": review["video_path"],
+    }
