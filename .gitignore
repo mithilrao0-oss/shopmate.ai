@@ -40,3 +40,7 @@ Thumbs.db
 backend/secrets/
 *client_secret*.json
 *token*.json
+
+# Generated files
+backend/media/reel_*
+*.log
