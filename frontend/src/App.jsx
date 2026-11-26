@@ -803,10 +803,295 @@ function TrendInsightsPage() {
 
 /* Review Queue page */
 
-function ReviewQueuePage({ reviewItems, onUpdateStatus, busyId }) {
+function ReviewQueuePage({
+  reviewItems,
+  onUpdateStatus,
+  busyId,
+  products = [],
+}) {
   const pendingItems = reviewItems.filter(
     (item) => item.status === "Pending"
   );
+
+  const [workflow, setWorkflow] = useState({});
+  const [publishMode, setPublishMode] = useState("checking");
+  const [actionId, setActionId] = useState(null);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    async function loadMode() {
+      try {
+        const response = await fetch(`${API_BASE}/api/posts/mode`);
+        if (!response.ok) throw new Error("Could not load publishing mode.");
+        const data = await response.json();
+        if (!cancelled) setPublishMode(data.mode || "unknown");
+      } catch {
+        if (!cancelled) setPublishMode("unknown");
+      }
+    }
+
+    loadMode();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    async function loadExistingWorkflow() {
+      const approvedReels = reviewItems.filter(
+        (item) =>
+          item.status === "Approved" &&
+          item.contentType === "Reel Script"
+      );
+
+      for (const item of approvedReels) {
+        if (cancelled) return;
+
+        try {
+          const [videoResponse, postsResponse] = await Promise.all([
+            fetch(`${API_BASE}/api/videos/${item.id}`),
+            fetch(`${API_BASE}/api/posts?review_id=${item.id}`),
+          ]);
+
+          let videoPath = null;
+          let posts = [];
+
+          if (videoResponse.ok) {
+            const videoData = await videoResponse.json();
+            videoPath = videoData.video_path || null;
+          }
+
+          if (postsResponse.ok) {
+            const postsData = await postsResponse.json();
+            posts = Array.isArray(postsData)
+              ? postsData
+              : postsData.posts || [];
+          }
+
+          if (!cancelled) {
+            setWorkflow((current) => ({
+              ...current,
+              [item.id]: {
+                ...current[item.id],
+                checked: true,
+                videoPath: current[item.id]?.videoPath || videoPath,
+                post:
+                  posts.find((post) =>
+                    ["Queued", "Publishing", "Posted"].includes(post.status)
+                  ) || current[item.id]?.post || null,
+              },
+            }));
+          }
+        } catch {
+          // The workflow buttons will report a useful error if an API call fails.
+        }
+      }
+    }
+
+    if (reviewItems.length > 0) loadExistingWorkflow();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [reviewItems]);
+
+  function updateWorkflow(id, changes) {
+    setWorkflow((current) => ({
+      ...current,
+      [id]: {
+        ...current[id],
+        ...changes,
+      },
+    }));
+  }
+
+  async function createReel(item, product) {
+    if (!product?.image_path) {
+      updateWorkflow(item.id, {
+        error: "This product does not have an uploaded image.",
+      });
+      return;
+    }
+
+    try {
+      setActionId(item.id);
+      updateWorkflow(item.id, {
+        error: "",
+        message: "Rendering final Reel video...",
+      });
+
+      const existingResponse = await fetch(
+        `${API_BASE}/api/posts?review_id=${item.id}`
+      );
+
+      if (existingResponse.ok) {
+        const existingData = await existingResponse.json();
+        const existingPosts = Array.isArray(existingData)
+          ? existingData
+          : existingData.posts || [];
+        const activePost = existingPosts.find((post) =>
+          ["Queued", "Publishing", "Posted"].includes(post.status)
+        );
+
+        if (activePost) {
+          updateWorkflow(item.id, {
+            post: activePost,
+            message: "A post already exists for this review. Duplicate publishing is blocked.",
+            error: "",
+          });
+          return;
+        }
+      }
+
+      const response = await fetch(`${API_BASE}/api/videos/render`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          review_id: item.id,
+          product_image_path: product.image_path,
+          quality: "final",
+        }),
+      });
+
+      const data = await response.json();
+      if (!response.ok) {
+        throw new Error(
+          getErrorMessage(data, "Could not render the Reel video.")
+        );
+      }
+
+      updateWorkflow(item.id, {
+        videoPath: data.video_path,
+        message: `Final video created successfully (${data.duration_seconds}s).`,
+        error: "",
+        post: null,
+      });
+    } catch (error) {
+      updateWorkflow(item.id, {
+        error: error.message || "Video rendering failed.",
+        message: "",
+      });
+    } finally {
+      setActionId(null);
+    }
+  }
+
+  async function publishReel(item) {
+    const current = workflow[item.id];
+
+    if (!current?.videoPath) {
+      updateWorkflow(item.id, {
+        error: "Create the final Reel video before continuing.",
+      });
+      return;
+    }
+
+    if (
+      current.post &&
+      ["Queued", "Publishing", "Posted"].includes(current.post.status)
+    ) {
+      updateWorkflow(item.id, {
+        error: "A post already exists. Duplicate publishing is blocked.",
+      });
+      return;
+    }
+
+    const isLive = publishMode === "live";
+    const confirmed = window.confirm(
+      isLive
+        ? "This will publish the Reel publicly to Instagram. Continue?"
+        : "This is DRY-RUN mode. The workflow will be tested, but nothing will be posted publicly. Continue?"
+    );
+
+    if (!confirmed) return;
+
+    try {
+      setActionId(item.id);
+      updateWorkflow(item.id, {
+        error: "",
+        message: "Adding Reel to publishing queue...",
+      });
+
+      const queueResponse = await fetch(`${API_BASE}/api/posts`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          review_id: item.id,
+          platforms: ["instagram"],
+        }),
+      });
+
+      const queueData = await queueResponse.json();
+      if (!queueResponse.ok) {
+        throw new Error(
+          getErrorMessage(queueData, "Could not queue the Reel.")
+        );
+      }
+
+      const queuedPost = Array.isArray(queueData.posts)
+        ? queueData.posts[0]
+        : queueData.post || queueData;
+
+      if (!queuedPost?.id) {
+        throw new Error("The queue response did not contain a post ID.");
+      }
+
+      updateWorkflow(item.id, {
+        post: queuedPost,
+        message: "Reel queued. Running publishing step...",
+      });
+
+      const publishResponse = await fetch(
+        `${API_BASE}/api/posts/${queuedPost.id}/publish`,
+        { method: "POST" }
+      );
+
+      const publishData = await publishResponse.json();
+      if (!publishResponse.ok) {
+        throw new Error(
+          getErrorMessage(publishData, "Publishing action failed.")
+        );
+      }
+
+      updateWorkflow(item.id, {
+        post: publishData,
+        message:
+          publishData.mode === "dry-run"
+            ? "Dry-run completed. Nothing was posted publicly."
+            : "Instagram publishing completed.",
+        error: "",
+      });
+    } catch (error) {
+      updateWorkflow(item.id, {
+        error: error.message || "Publishing workflow failed.",
+        message: "",
+      });
+    } finally {
+      setActionId(null);
+    }
+  }
+
+  function getCaption(item) {
+    let payload = item.payload || {};
+
+    if (typeof payload === "string") {
+      try {
+        payload = JSON.parse(payload);
+      } catch {
+        payload = {};
+      }
+    }
+
+    const caption = payload.caption || "";
+    const hashtags = Array.isArray(payload.hashtags)
+      ? payload.hashtags.join(" ")
+      : "";
+
+    return [caption, hashtags].filter(Boolean).join("\n\n");
+  }
 
   return (
     <section>
@@ -821,8 +1106,12 @@ function ReviewQueuePage({ reviewItems, onUpdateStatus, busyId }) {
       </div>
 
       <div className="demo-notice">
-        <strong>Prototype:</strong> Drafts and review statuses are stored in the
-        local SQLite database. Nothing is published to Instagram.
+        <strong>Instagram publishing mode:</strong>{" "}
+        {publishMode === "dry-run"
+          ? "Dry-run — no public posts will be created."
+          : publishMode === "live"
+          ? "Live — publishing can create public Instagram posts."
+          : "Checking publishing mode..."}
       </div>
 
       <section className="panel">
@@ -840,46 +1129,145 @@ function ReviewQueuePage({ reviewItems, onUpdateStatus, busyId }) {
           </p>
         ) : (
           <div className="review-list">
-            {reviewItems.map((item) => (
-              <article className="review-card" key={item.id}>
-                <div className="review-card-heading">
-                  <div>
-                    <h3>{item.productName}</h3>
-                    <p>
-                      {item.contentType} · {item.tone} tone
-                    </p>
+            {reviewItems.map((item) => {
+              const product = products.find(
+                (p) =>
+                  p.name?.trim().toLowerCase() ===
+                  item.productName?.trim().toLowerCase()
+              );
+              const current = workflow[item.id] || {};
+              const isReel =
+                item.contentType === "Reel Script" &&
+                item.status === "Approved";
+              const alreadyPosted = ["Queued", "Publishing", "Posted"].includes(
+                current.post?.status
+              );
+
+              return (
+                <article className="review-card" key={item.id}>
+                  <div className="review-card-heading">
+                    <div>
+                      <h3>{item.productName}</h3>
+                      <p>
+                        {item.contentType} · {item.tone} tone
+                      </p>
+                    </div>
+
+                    <span
+                      className={`review-status ${item.status.toLowerCase()}`}
+                    >
+                      {item.status}
+                    </span>
                   </div>
 
-                  <span
-                    className={`review-status ${item.status.toLowerCase()}`}
-                  >
-                    {item.status}
-                  </span>
-                </div>
+                  <p className="review-content">{item.content}</p>
 
-                <p className="review-content">{item.content}</p>
+                  {item.status === "Pending" && (
+                    <div className="review-actions">
+                      <button
+                        className="primary-button"
+                        disabled={busyId === item.id}
+                        onClick={() => onUpdateStatus(item.id, "Approved")}
+                      >
+                        {busyId === item.id ? "Saving..." : "Approve"}
+                      </button>
 
-                {item.status === "Pending" && (
-                  <div className="review-actions">
-                    <button
-                      className="primary-button"
-                      disabled={busyId === item.id}
-                      onClick={() => onUpdateStatus(item.id, "Approved")}
-                    >
-                      {busyId === item.id ? "Saving..." : "Approve"}
-                    </button>
+                      <button
+                        className="secondary-button"
+                        disabled={busyId === item.id}
+                        onClick={() => onUpdateStatus(item.id, "Rejected")}
+                      >
+                        {busyId === item.id ? "Saving..." : "Reject"}
+                      </button>
+                    </div>
+                  )}
 
-                    <button
-                      className="secondary-button"
-                      disabled={busyId === item.id}
-                      onClick={() => onUpdateStatus(item.id, "Rejected")}
-                    >
-                      {busyId === item.id ? "Saving..." : "Reject"}
-                    </button>
-                  </div>
-                )}
-              </article>
-            ))}
+                  {isReel && (
+                    <div className="publish-workflow">
+                      <h4>Instagram Reel Workflow</h4>
+                      <p className="workflow-product">
+                        Product image: {product?.image_path ? "Available" : "Not uploaded — add a product image first."}
+                      </p>
+
+                      {!current.videoPath && (
+                        <button
+                          className="primary-button"
+                          disabled={
+                            actionId === item.id ||
+                            !product?.image_path ||
+                            alreadyPosted
+                          }
+                          onClick={() => createReel(item, product)}
+                        >
+                          {actionId === item.id ? "Please wait..." : "Create Reel Video"}
+                        </button>
+                      )}
+
+                      {current.videoPath && (
+                        <div className="reel-video-preview">
+                          <h4>Final Reel Preview</h4>
+                          <video
+                            controls
+                            preload="metadata"
+                            src={`${API_BASE}/api/videos/${item.id}/file`}
+                          >
+                            Your browser does not support video playback.
+                          </video>
+
+                          <h4>Instagram Caption</h4>
+                          <p className="reel-caption">
+                            {getCaption(item) || "No caption available."}
+                          </p>
+
+                          {current.post ? (
+                            <div className="publish-result">
+                              <strong>Post status: {current.post.status}</strong>
+                              {current.post.mode === "dry-run" && (
+                                <p>Dry-run completed. Nothing was posted publicly.</p>
+                              )}
+                              {current.post.external_url && (
+                                <p>
+                                  <a
+                                    href={current.post.external_url}
+                                    target="_blank"
+                                    rel="noreferrer"
+                                  >
+                                    View Instagram Reel
+                                  </a>
+                                </p>
+                              )}
+                            </div>
+                          ) : (
+                            <button
+                              className="primary-button"
+                              disabled={
+                                actionId === item.id ||
+                                publishMode === "checking" ||
+                                publishMode === "unknown"
+                              }
+                              onClick={() => publishReel(item)}
+                            >
+                              {actionId === item.id
+                                ? "Processing..."
+                                : publishMode === "dry-run"
+                                ? "Confirm Dry-run Test"
+                                : "Confirm & Publish to Instagram"}
+                            </button>
+                          )}
+                        </div>
+                      )}
+
+                      {current.message && (
+                        <p className="workflow-message">{current.message}</p>
+                      )}
+                      {current.error && (
+                        <p className="workflow-error">{current.error}</p>
+                      )}
+                    </div>
+                  )}
+                </article>
+              );
+            })}
           </div>
         )}
       </section>
@@ -1101,6 +1489,7 @@ export default function App() {
           reviewItems={reviewItems}
           onUpdateStatus={updateReviewStatus}
           busyId={busyId}
+          products={products}
         />
       );
     }

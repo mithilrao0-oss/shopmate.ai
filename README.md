@@ -11,7 +11,7 @@ The project showcases:
 - **Local AI inference** using Ollama and the small Qwen3 1.7B model: scripts, voice and video are all made on your own machine.
 - **A safe publish queue**: only approved reels with a rendered video can be queued, and posting defaults to a harmless dry-run mode.
 
-**Status:** Script generation, human review, video rendering and a publish queue (dry-run) are working and tested. **Instagram Reels publishing works: the first live reel was posted on 26 November 2026.** Publish buttons in the UI, a stronger claim checker, YouTube Shorts and customer tracking come next.
+**Status:** Script generation, human review, video rendering and a publish queue (dry-run) are working and tested. **Instagram Reels publishing works: the first live reel was posted on 26 November 2026.** UI publishing controls, stronger product-claim verification, YouTube Shorts and customer tracking remain planned.
 
 ---
 
@@ -281,6 +281,7 @@ POST /api/ai/test
 ```
 POST /api/videos/render
 GET /api/videos/{review_id}
+GET /api/videos/{review_id}/file
 ```
 See **Video Rendering** below.
 
@@ -396,7 +397,7 @@ Optional: If the backend is not at `http://localhost:5000`, copy `.env.example` 
 ✅ **Publish queue with dry-run mode** (Step 4)  
 ✅ Human review workflow  
 ✅ Responsible AI screening at multiple stages  
-✅ Backend tests (40 passing)  
+✅ Backend tests (58 passing)
 ✅ **Instagram Reels publishing** (Step 5): live-tested with direct video upload, queue, safety rules and AI label  
 ⏳ YouTube Shorts publishing, customer sign-up tracking with Telegram alerts (later)  
 
@@ -421,6 +422,7 @@ Optional: If the backend is not at `http://localhost:5000`, copy `.env.example` 
 ```
 POST /api/videos/render
 GET /api/videos/{review_id}
+GET /api/videos/{review_id}/file
 ```
 
 Request:
@@ -545,7 +547,7 @@ This project uses a **small, lightweight model (Qwen3 1.7B)** for local inferenc
 
 - **Unsupported claims still pass.** A generated script was approved with "energy-efficient" and #EcoFriendly even though the product facts only said "LED light" and "Made for desks". The human reviewer must catch these until the checker compares claims with the product's highlights.
 - **PowerShell may show the rupee sign as garbled text** when printing API responses (a console encoding quirk). The stored data is fine; write the sign as `\u20b9` in JSON sent from PowerShell.
-- **The SQLite database was committed to the repository** once to move data between PCs. Using it on several PCs will cause merge conflicts, so stop tracking it once one PC is chosen.
+- **SQLite database and media files are local data, not Git source files.** They are excluded from Git. Transfer them separately using the `ShopMate_Backup` folder when moving between PCs.
 - **The small model invents claims.** Even when a product has real highlights, Qwen3 1.7B sometimes adds features that were never provided (for example "eco-friendly" or "long-lasting" for a desk lamp). The checker flags some of these ("guaranteed", "cures", "long-lasting") but it is word-based and does not catch everything, so a human must read every script.
 - **Products page is demo data** in the browser; the product database and image upload are used through the API.
 - **Trend Insights uses sample data** and does not predict virality.
@@ -592,7 +594,7 @@ This project is provided as-is for educational purposes.
 ## 🚀 Next Developer Tasks
 
 1. **Publish buttons and post status in the UI** (queue, publish, status, link, error message), so the command line is no longer needed.
-2. **Stronger claim checking:** flag product features that are not in the product's highlights (for example "energy-efficient"), and make the render step require an approved review.
+2. **Stronger claim checking:** flag product features that are not in the product's highlights (for example "energy-efficient"), while retaining the existing approved-review requirement before rendering.
 3. **Dry-run posts should not block a real post** for the same review.
 4. **Optional scheduler** that publishes queued posts at set times.
 5. **Stop tracking `shopmate.db`** in Git and move product images out of the database-only path.
